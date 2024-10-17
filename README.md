@@ -11,6 +11,37 @@ The included pre-generated test sets achieve functional coverage of over 94% and
 The framework is implemented in Python and highly flexible.
 It is suitable for both automated and interactive debugging workflows through its integration with Jupyter notebooks.
 
+More information on RVVTS can be found in the publications linked in the [last section](#publications).
+
+
+
+## Project Structure
+
+```
+├── README.md                                                ... This file
+├── config_host.ipynb                                        ... Host-related configurations (see Install section!)
+├── config_internal.ipynb                                    ... Internal configurations (modify only if know what you are doing!)
+├── FuzzCodeErrMinRunnerTests.ipynb                          ... Jupyter notebook demonstrating interactive and
+                                                                 semi-automated testing -> Good starting point for experiments!
+├── CovGuidedFuzzerGenRunnerTests.ipynb                      ... Jupyter notebook demonstrating test set generation
+├── CovGuidedTestsetGenerator.ipynb                          ... Jupyter notebook demonstrating parallized test-set generation
+                                                                 (e.g. directory "Testsets")
+├── TestsetCodeErrMinRunnerTests.ipynb                       ... Jupyter notebook demonstrating execution of pre-generated
+                                                                 test sets
+├── LICENSE                                                  ... BSD 3-clause "New" or "Revised" License
+├── rvvts                                                    ... The core rvvts Python framework
+└── TestSets                                                 ... Pre-generated test sets (by CovGuidedTestsetGenerator)
+    ├── TestSet_ValidSeq_RV32_3MiB_RVV_VLEN_512_100          ... test set with 100 test cases for positive testing (without traps)
+                                                                 of RV32+RVV with 3MiB memory and 512bit vector length
+    └── TestSet_ValidSeq_RV64_3MiB_RVV_VLEN_512_100          ... test set with 100 test cases for positive testing (without traps)
+                                                                 of RV64+RVV with 3MiB memory and 512bit vector length
+    ├── TestSet_InvalidValidSeq_RV32_3MiB_RVV_VLEN_512_100   ... test set with 100 test cases for negative/positive testing (with traps)
+                                                                 of RV32+RVV with 3MiB memory and 512bit vector length
+    └── TestSet_InvalidValidSeq_RV64_3MiB_RVV_VLEN_512_100   ... test set with 100 test cases for negative/positive testing (with traps)
+                                                                 of RV64+RVV with 3MiB memory and 512bit vector length
+```
+
+
 
 ## Installation/Setup
 
@@ -39,9 +70,9 @@ Example of setup a new Python 3.11 in conda
     conda create --name python_rvvts python=3.11
     ```
  3. Enable environment
-   ```
-   conda activate python_rvvts
-   ```
+    ```
+    conda activate python_rvvts
+    ```
 
 
 RVVTS dependencies on python packages can be installed with
@@ -74,7 +105,7 @@ Versions newer than this use different parameters for the vector extension (vlen
     make -j$(nproc)
     ```
     You should now have a executable file ```spike``` in this directory.
- 4. Update ```spike_bin``` in ```config_host.ipynb```. Use the absolute path to the created ```spike``` executable.
+ 4. Update ```spike_bin``` in ```config_host.ipynb```. Use the absolute path to the created ```spike``` executable
 
 
 More detailed build instructions can be found in the documentation of the Spike simulator.
@@ -102,16 +133,16 @@ The [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain) i
     make newlib -j$(nproc)
     ```
     You should now have the executable files ```riscv64-unknown-elf-gcc``` and ```riscv64-unknown-elf-gdb``` in directory ```bin```.
- 4. Update ```gcc_bin``` and ```gdb_bin``` in ```config_host.ipynb```. Use the absolute paths to the created ```riscv64-unknown-elf-gcc``` and ```riscv64-unknown-elf-gdb``` executables.
+ 4. Update ```gcc_bin``` and ```gdb_bin``` in ```config_host.ipynb```. Use the absolute paths to the created ```riscv64-unknown-elf-gcc``` and ```riscv64-unknown-elf-gdb``` executables
 
 
 More detailed build instructions can be found in the documentation of the RISC-V GNU toolchain.
 
 
 
-### Imperas RISC-V riscvOVPsim reference simulator (Optional)
+### RISC-V riscvOVPsim reference simulator (Optional)
 
-[riscvOVPsim](https://github.com/riscv-ovpsim/imperas-riscv-tests) is optionally used by RVVTS to obtain functional coverage values.
+The [riscvOVPsim](https://github.com/riscv-ovpsim/imperas-riscv-tests) simulator is optionally used by RVVTS to obtain functional coverage values.
 
 riscvOVPsim is free but not open source.
 Binaries are distributed via via github: https://github.com/riscv-ovpsim/imperas-riscv-tests.
@@ -125,7 +156,7 @@ The distributed binaries are locked via a date check and the repo was not update
     cd imperas-riscv-tests
     ```
     You should now have the executable file ```riscvOVPsim.exe``` in directory ```riscv-ovpsim/bin/Linux64```.
- 2. Update ```riscvovpsim_bin``` in ```config_host.ipynb```. Use the absolute path to the ```riscvOVPsim.exe``` executable.
+ 2. Update ```riscvovpsim_bin``` in ```config_host.ipynb```. Use the absolute path to the ```riscvOVPsim.exe``` executable
 
 
 
@@ -147,7 +178,7 @@ The distributed binaries are locked via a date check and the repo was not update
     make vps -j$(nproc)
     ```
     You should now have the executable files ```tiny32-vp``` and ```tiny64-vp``` in directory ```vp/build/bin```.
- 4. Update ```vp_path``` in ```config_host.ipynb```. Use the absolute paths to ```vp/build/bin```.
+ 4. Update ```vp_path``` in ```config_host.ipynb```. Use the absolute paths to ```vp/build/bin```
 
 
 More detailed build instructions can be found in the documentation of the RISC-V GNU toolchain.
@@ -173,35 +204,35 @@ More detailed build instructions can be found in the documentation of the RISC-V
     make -j$(nproc)
     ```
     You should now have the executable files ```qemu-system-riscv32``` and ```qemu-system-riscv64``` in directory ```build```.
- 4. Update ```qemu_path``` in ```config_host.ipynb```. Use the absolute paths to ```build```.
+ 4. Update ```qemu_path``` in ```config_host.ipynb```. Use the absolute paths to ```build```
 
 
 
-## Project Structure
+## First Steps
 
-```
-├── README.md                                                ... This file
-├── config_host.ipynb                                        ... Host-related configurations (see Install section!)
-├── config_internal.ipynb                                    ... Internal configurations (modify only if know what you are doing!)
-├── FuzzCodeErrMinRunnerTests.ipynb                          ... Jupyter notebook demonstrating interactive and 
-                                                                 semi-automated testing -> Good starting point for experiments!
-├── CovGuidedFuzzerGenRunnerTests.ipynb                      ... Jupyter notebook demonstrating test set generation
-├── CovGuidedTestsetGenerator.ipynb                          ... Jupyter notebook demonstrating parallized test-set generation
-                                                                 (e.g. directory "Testsets")
-├── TestsetCodeErrMinRunnerTests.ipynb                       ... Jupyter notebook demonstrating execution of pre-generated
-                                                                 test sets.
-├── LICENSE                                                  ... BSD 3-clause "New" or "Revised" License
-├── rvvts                                                    ... rvvts Python framework
-└── TestSets                                                 ... Pre-generated test sets (by CovGuidedTestsetGenerator)
-    ├── TestSet_ValidSeq_RV32_3MiB_RVV_VLEN_512_100          ... test set with 100 test cases for positive testing (without traps)
-                                                                 of RV32+RVV with 3MiB memory and 512bit vector length
-    └── TestSet_ValidSeq_RV64_3MiB_RVV_VLEN_512_100          ... test set with 100 test cases for positive testing (without traps)
-                                                                 of RV64+RVV with 3MiB memory and 512bit vector length
-    ├── TestSet_InvalidValidSeq_RV32_3MiB_RVV_VLEN_512_100   ... test set with 100 test cases for negative/positive testing (with traps)
-                                                                 of RV32+RVV with 3MiB memory and 512bit vector length
-    └── TestSet_InvalidValidSeq_RV64_3MiB_RVV_VLEN_512_100   ... test set with 100 test cases for negative/positive testing (with traps)
-                                                                 of RV64+RVV with 3MiB memory and 512bit vector length
-```
+After Install/Setup:
+ 1. Switch to the RVVTS top-directory
+ 2. If necessary, activate your virtual Python environment \
+    e.g. conda
+    ```
+    conda activate python_rvvts
+    ```
+ 3. Start Jupyter Lab
+    ```
+    jupyter lab
+    ```
+Your browser should now be open and display Jupyter lab and the project structure as presented in section [Project Structure](#project-structure).
+
+A good starting point for experiments is ```FuzzCodeErrMinRunnerTests.ipynb```:
+ 1. Select your prefered ```dut``` and ```xlen``` in the config cell
+ 2. Run the notebook cell-by-cell
+    * "First Test": Generates a single random program, executes it on the reference simulator and dut and shows a machine state difference report.
+      * If a deviation in the machine state is detected (potential fail) you can examine the minimized program causing the deviation by uncommenting the lines in the following cell.
+    * "Manual Experiments": Enter your own program to be executed and compared.
+    * "Automated Experiments": Automated runs of "First Test". Detailed statistics and failing instructions are shown live while the execution is running.
+
+You can now investigate the other Jupyter notebooks as presented in section [Project Structure](#project-structure).
+
 
 
 ## Publications
