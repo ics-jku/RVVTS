@@ -45,6 +45,8 @@ class AraRunner(ProcessTimeoutRunner):
             for i, s in enumerate(tmp):
                 if "pc" in s:
                   pc_idx = i
+                if "STALL" in s:
+                  return (RunnerOutcome.TIMEOUT,s)
             if pc_idx == -1:
                 raise Exception("Could not extract integer registers from testbench output")
             regs["pc"] = int(tmp[pc_idx].split(" ")[1])
