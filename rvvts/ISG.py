@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -30,10 +30,6 @@ class ExpansionException(Exception):
 
 
 def nonterminals(expansion):
-    # with the expansion being the first element
-    if isinstance(expansion, tuple):
-        expansion = expansion[0]
-
     return RE_NONTERMINAL.findall(expansion)
 
 
@@ -66,10 +62,6 @@ def grammarISG(
         if callable(expansion):
             # expansion is method -> execute
             expansion = expansion()
-
-        # with the expansion being the first element
-        if isinstance(expansion, tuple):
-            expansion = expansion[0]
 
         new_term = term.replace(symbol_to_expand, expansion, 1)
 
