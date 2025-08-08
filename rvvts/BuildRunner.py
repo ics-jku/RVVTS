@@ -131,7 +131,8 @@ _end:
             self.asmhdr += self.dumpfile.vstate.gen_save()
             self.asmhdr += "    # save vector registers\n"
             self.asmhdr += self.dumpfile.vregs.gen_save()
-            self.asmhdr += """
+
+        self.asmhdr += """
 
     # restore gp
     csrrw gp, mscratch, gp

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -121,7 +121,8 @@ class MachineState:
 
     def check(self):
         # TODO improve
-        self.check_vcsr()
+        if self.has_vector:
+            self.check_vcsr()
 
     def init_iregs(self, value_mode):
         max_regval = (2 ** self.config["xlen"]) - 1
