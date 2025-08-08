@@ -77,19 +77,17 @@ pip install numpy jsonpickle jupyter
 
 The [Spike simulator](https://github.com/riscv-software-src/riscv-isa-sim) is used as golden model for execution comparison by RVVTS and therefore mandatory.
 
-***CAUTION: The most recent supported version of spike is git hash 3d4027a2bb559af758a2a9d624a3848ae2485453 (June 22, 2024)*** \
-Versions newer than this use different parameters for the vector extension (vlen, elen) which are not yet supported by RVVTS.
+***Note: The oldest spike version supported is git hash 0408e797b139dbc1aaa52cb33dea047ad8d230ad (June 20, 2024)*** \
+Versions older than this use different parameters for the vector extension (vlen, elen) which are not longer supported by RVVTS.
 
  1. Clone the Spike repository and enter the directory
     ```
     git clone https://github.com/riscv-software-src/riscv-isa-sim.git
     cd riscv-isa-sim
     ```
- 2. Select specific Spike version \
-    Most recent supported version (see above): git hash 3d4027a2bb559af758a2a9d624a3848ae2485453 (June 22, 2024) \
-    Development of the framework was mostly done on spike git hash b98de6f689b426dce3f3d013408b4017b1018c08 (December 13, 2023)
+ 2. Optional: Select a specific Spike version (>= git hash 0408e797b139dbc1aaa52cb33dea047ad8d230ad - see above)
     ```
-    git checkout 3d4027a2bb559af758a2a9d624a3848ae2485453
+    git checkout 1553a2a89699ccfbbccc3dc2dfc0815151b5694a
     ```
  3. Build
     ```

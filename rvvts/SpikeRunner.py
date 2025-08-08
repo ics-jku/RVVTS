@@ -40,21 +40,18 @@ class SpikeRunner(ProcessTimeoutRunner):
         )
 
         # create command
-        # TODO: when switching to new spike version
-        # --varch does no longer exist in new spike versions (use zvl/zve instead)
+        # --varch does no longer exist in new spike versions (3d4027a2bb559af758a2a9d624a3848ae2485453 (June 22, 2024)) -> use we zvl/zve instead
         # e.g. ".._zvl512b" (see V spec)
-        # 1. If --varch is used, this triggers a framework bug (reference of None type) -> fix before fixing varch
-        # 2. Fix parameters below
+        rv_extensions = config["rv_extensions"]
+        if "v" in rv_extensions:
+            rv_extensions = rv_extensions.replace("v", "_zvl" + str(config["vector_vlen"]) + "b_zve" + str(config["vector_elen"]) + "d")
+        spike_isa = "RV" + str(config["xlen"]) + "I" + rv_extensions + "_zifencei"
+
         self.set_program(
             [
                 config["spike_bin"],
                 "--isa",
-                "RV" + str(config["xlen"]) + "I" + config["rv_extensions"] + "_zifencei",
-                "--varch="
-                + "vlen:"
-                + str(config["vector_vlen"])
-                + ",elen:"
-                + str(config["vector_elen"]),
+                spike_isa,
                 "-d",
                 "-m" + hex(config["memstart"]) + ":" + hex(config["memlen"]),
                 "--pc=" + hex(config["xmemstart"]),
