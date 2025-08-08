@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -56,9 +56,10 @@ class CodeElement:
 
 
 class CodeFragment(CodeElement):
-    def __init__(self, code: str):
+    def __init__(self, code = "", ann = {}):
         super().__init__()
         self.code = code
+        self.ann = ann
 
     def replace(self, oldvalue, newvalue):
         self.code = self.code.replace(oldvalue, newvalue)
