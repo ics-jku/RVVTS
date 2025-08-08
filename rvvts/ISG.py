@@ -37,43 +37,51 @@ def is_nonterminal(s):
     return RE_NONTERMINAL.match(s)
 
 
-# based on
-# "The Fuzzing Book"
-# by Andreas Zeller, Rahul Gopinath, Marcel Böhme, Gordon Fraser, and Christian Holler
+# recursive depth first grammar isg
+# NOTE: does not support recursive grammars
 def grammarISG(
     grammar,
     start_symbol=START_SYMBOL,
-    max_nonterminals=10,
-    max_expansion_trials=100,
     log=False,
 ):
     term = start_symbol
-    expansion_trials = 0
+    ntsyms = nonterminals(term)
 
-    while len(nonterminals(term)) > 0:
-        symbol_to_expand = random.choice(nonterminals(term))
-        expansions = grammar[symbol_to_expand]
-        if callable(expansions):
-            # expansions is method -> execute
-            expansion = expansions()
-        else:
-            # expansions is list -> choose
-            expansion = random.choice(expansions)
-        if callable(expansion):
-            # expansion is method -> execute
-            expansion = expansion()
+    while True:
+        if len(ntsyms) == 0:
+            # no more non-terminal symbols -> done
+            break
 
-        new_term = term.replace(symbol_to_expand, expansion, 1)
+        # get next symbol and expand from grammar
+        ntsym = ntsyms.pop()
+        exp = grammar[ntsym]
 
-        if len(nonterminals(new_term)) < max_nonterminals:
-            term = new_term
-            if log:
-                print("%-40s" % (symbol_to_expand + " -> " + expansion), term)
-            expansion_trials = 0
-        else:
-            expansion_trials += 1
-            if expansion_trials >= max_expansion_trials:
-                raise ExpansionException("Cannot expand " + repr(term))
+        # ensure that exp is a string
+        while True:
+
+            if isinstance(exp, str):
+                # done
+                break
+
+            # exp is a list -> multiple alternatives > select one randomly
+            elif isinstance(exp, list):
+                exp = random.choice(exp)
+
+            # exp is callable -> call
+            elif callable(exp):
+                exp = exp()
+
+            # exp is tuple -> not implemented yet
+            elif isinstance(exp, tuple):
+                print("NOT IMPLEMENTED YET: " + str(exp))
+                exp = exp[0]
+
+            else:
+                raise ExpansionException("Cannot expand " + repr(exp) + ": unknown type")
+
+        # update term and nsyms
+        term = term.replace(ntsym, exp, 1)
+        ntsyms = nonterminals(term)
 
     return term
 
