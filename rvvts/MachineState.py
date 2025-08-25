@@ -259,7 +259,7 @@ class MachineState:
 
         return output
 
-    def compare(self, other):
+    def compare(self, other, diff_full = False):
         output = ""
         is_equal = True
 
@@ -274,21 +274,27 @@ class MachineState:
         for regname in regs_ref.keys():
             val_ref = regs_ref[regname]
             val_dut = regs_dut[regname]
+            entry_is_equal = True
             if val_ref != val_dut:
-                diff = "X"
+                entry_is_equal = False
                 is_equal = False
-            else:
-                diff = ""
+
             if regname != "pc":
                 regname = regname + "(x" + str(RVREGS_IDX_DICT[regname]) + ")"
             regname = regname.ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
-            output += (
-                regname
-                + f"{val_ref:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}".ljust(48, " ")
-                + f"{val_dut:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}".ljust(48, " ")
-                + diff
-                + "\n"
-            )
+
+            if diff_full or entry_is_equal == False:
+                if not entry_is_equal:
+                    diff = "X"
+                else:
+                    diff = ""
+                output += (
+                    regname
+                    + f"{val_ref:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}".ljust(48, " ")
+                    + f"{val_dut:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}".ljust(48, " ")
+                    + diff
+                    + "\n"
+                )
 
         output += "\n"
         output += (
@@ -302,11 +308,10 @@ class MachineState:
         for sname in state_ref.keys():
             val_ref = state_ref[sname]
             val_dut = state_dut[sname]
+            entry_is_equal = True
             if val_ref != val_dut:
-                diff = "X"
+                entry_is_equal = False
                 is_equal = False
-            else:
-                diff = ""
 
             if isinstance(val_ref, int) and isinstance(val_dut, int):
                 val_ref_str = f"{val_ref:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val_ref) + ")"
@@ -318,27 +323,33 @@ class MachineState:
                 val_ref_str = str(val_ref)
                 val_dut_str = str(val_dut)
 
-            if len(val_ref_str) < 48 and len(val_dut_str) < 48:
-                sname = sname.ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
-                val_ref_str = val_ref_str.ljust(48, " ")
-                val_dut_str = val_dut_str.ljust(48, " ")
-                output += sname + str(val_ref_str) + str(val_dut_str) + diff + "\n"
-            else:
-                sname = sname.ljust(self.FORMAT_MAX_NAME_WIDTH + 48 + 48, " ")
-                output += sname + diff + "\n"
-                output += val_ref_str + "\n"
-                output += val_dut_str + "\n"
 
-                def str_helper(a, b):
-                    if a == b:
-                        return "  "
-                    else:
-                        return "^^"
+            if diff_full or entry_is_equal == False:
+                if not entry_is_equal:
+                    diff = "X"
+                else:
+                    diff = ""
+                if len(val_ref_str) < 48 and len(val_dut_str) < 48:
+                    sname = sname.ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
+                    val_ref_str = val_ref_str.ljust(48, " ")
+                    val_dut_str = val_dut_str.ljust(48, " ")
+                    output += sname + str(val_ref_str) + str(val_dut_str) + diff + "\n"
+                else:
+                    sname = sname.ljust(self.FORMAT_MAX_NAME_WIDTH + 48 + 48, " ")
+                    output += sname + diff + "\n"
+                    output += val_ref_str + "\n"
+                    output += val_dut_str + "\n"
 
-                output += (
-                    " ".join([str_helper(a, b) for a, b in zip(val_ref, val_dut)])
-                    + "\n"
-                )
+                    def str_helper(a, b):
+                        if a == b:
+                            return "  "
+                        else:
+                            return "^^"
+
+                    output += (
+                        " ".join([str_helper(a, b) for a, b in zip(val_ref, val_dut)])
+                        + "\n"
+                    )
 
         return (is_equal, output)
 

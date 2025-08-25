@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -15,6 +15,8 @@ class CompareRunner(Runner):
     def setup(self, config=None):
 
         super().setup(config)
+
+        self.mstate_diff_full = config.get("CompareRunner_mstate_diff_full", True)
 
         subconfig = config.copy()
         subconfig["dir"] = self.get_dir()
@@ -56,7 +58,7 @@ class CompareRunner(Runner):
             return (RunnerOutcome.ERROR, res_output)
 
         try:
-            (is_equal, output) = res_ref[1].compare(res_dut[1])
+            (is_equal, output) = res_ref[1].compare(res_dut[1], diff_full = self.mstate_diff_full)
             if is_equal:
                 outcome = RunnerOutcome.COMPLETE
             else:
