@@ -60,6 +60,9 @@ class MachineState:
         return None
 
     def __init__(self, config, state=None):
+        self.FORMAT_MAX_NAME_WIDTH = 20
+        self.FORMAT_MAX_VALUE_WIDTH = 16
+
         self.VALUE_MODE_ZERO = 0
         self.VALUE_MODE_RAND = 1
         self.config = config
@@ -227,28 +230,28 @@ class MachineState:
         output = ""
 
         regs = self.state[0]
-        output += "REG".ljust(16, " ") + "VALUE\n"
+        output += "REG".ljust(self.FORMAT_MAX_NAME_WIDTH, " ") + "VALUE\n"
         for regname in regs.keys():
             val = regs[regname]
             if regname != "pc":
                 regname = regname + "(x" + str(RVREGS_IDX_DICT[regname]) + ")"
-            regname = regname.ljust(16, " ")
-            output += regname + f"{val:#0{16+2}x}(" + str(val) + ")\n"
+            regname = regname.ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
+            output += regname + f"{val:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val) + ")\n"
 
         output += "\n"
-        output += "STATE".ljust(16, " ") + "VALUE\n"
+        output += "STATE".ljust(self.FORMAT_MAX_NAME_WIDTH, " ") + "VALUE\n"
         state = self.state[1]
         for sname in state.keys():
             val = state[sname]
             if isinstance(val, int):
-                val = f"{val:#0{16+2}x}(" + str(val) + ")"
+                val = f"{val:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val) + ")"
             elif isinstance(val, bytes):
                 val = " ".join("{:02x}".format(x) for x in val)
             else:
                 val = str(val)
 
             if len(val) < 48:
-                sname = sname.ljust(16, " ")
+                sname = sname.ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
                 output += sname + str(val) + "\n"
             else:
                 output += sname + "\n"
@@ -263,7 +266,7 @@ class MachineState:
         regs_ref = self.state[0]
         regs_dut = other.state[0]
         output += (
-            "REG".ljust(16, " ")
+            "REG".ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
             + "REF".ljust(48, " ")
             + "DUT".ljust(48, " ")
             + "DIFF\n"
@@ -278,18 +281,18 @@ class MachineState:
                 diff = ""
             if regname != "pc":
                 regname = regname + "(x" + str(RVREGS_IDX_DICT[regname]) + ")"
-            regname = regname.ljust(16, " ")
+            regname = regname.ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
             output += (
                 regname
-                + f"{val_ref:#0{16+2}x}".ljust(48, " ")
-                + f"{val_dut:#0{16+2}x}".ljust(48, " ")
+                + f"{val_ref:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}".ljust(48, " ")
+                + f"{val_dut:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}".ljust(48, " ")
                 + diff
                 + "\n"
             )
 
         output += "\n"
         output += (
-            "STATE".ljust(16, " ")
+            "STATE".ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
             + "REF".ljust(48, " ")
             + "DUT".ljust(48, " ")
             + "DIFF\n"
@@ -306,8 +309,8 @@ class MachineState:
                 diff = ""
 
             if isinstance(val_ref, int) and isinstance(val_dut, int):
-                val_ref_str = f"{val_ref:#0{16+2}x}(" + str(val_ref) + ")"
-                val_dut_str = f"{val_dut:#0{16+2}x}(" + str(val_dut) + ")"
+                val_ref_str = f"{val_ref:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val_ref) + ")"
+                val_dut_str = f"{val_dut:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val_dut) + ")"
             elif isinstance(val_ref, bytes) and isinstance(val_dut, bytes):
                 val_ref_str = " ".join("{:02x}".format(x) for x in val_ref)
                 val_dut_str = " ".join("{:02x}".format(x) for x in val_dut)
@@ -316,12 +319,12 @@ class MachineState:
                 val_dut_str = str(val_dut)
 
             if len(val_ref_str) < 48 and len(val_dut_str) < 48:
-                sname = sname.ljust(16, " ")
+                sname = sname.ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
                 val_ref_str = val_ref_str.ljust(48, " ")
                 val_dut_str = val_dut_str.ljust(48, " ")
                 output += sname + str(val_ref_str) + str(val_dut_str) + diff + "\n"
             else:
-                sname = sname.ljust(16 + 48 + 48, " ")
+                sname = sname.ljust(self.FORMAT_MAX_NAME_WIDTH + 48 + 48, " ")
                 output += sname + diff + "\n"
                 output += val_ref_str + "\n"
                 output += val_dut_str + "\n"
