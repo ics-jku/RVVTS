@@ -243,7 +243,9 @@ class MachineState:
         state = self.state[1]
         for sname in state.keys():
             val = state[sname]
-            if isinstance(val, int):
+            if isinstance(val, bool):
+                val = str(val)
+            elif isinstance(val, int):
                 val = f"{val:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val) + ")"
             elif isinstance(val, bytes):
                 val = " ".join("{:02x}".format(x) for x in val)
@@ -313,7 +315,10 @@ class MachineState:
                 entry_is_equal = False
                 is_equal = False
 
-            if isinstance(val_ref, int) and isinstance(val_dut, int):
+            if isinstance(val_ref, bool) and isinstance(val_dut, bool):
+                val_ref_str = str(val_ref)
+                val_dut_str = str(val_dut)
+            elif isinstance(val_ref, int) and isinstance(val_dut, int):
                 val_ref_str = f"{val_ref:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val_ref) + ")"
                 val_dut_str = f"{val_dut:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val_dut) + ")"
             elif isinstance(val_ref, bytes) and isinstance(val_dut, bytes):
