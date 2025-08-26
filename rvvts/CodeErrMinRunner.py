@@ -71,8 +71,9 @@ def code_minimize(
     # use good code to create state (registers)
     good_code = code.get_part(0, good_idx)
     res = codecheckrunner.run(blocking=True, code=good_code.as_code(), **kwargs)
-
-    # TODO: check res for error -> exception?
+    # "good code" causes error -> minimization failed
+    if res[0] != RunnerOutcome.COMPLETE:
+        return (res, None)
 
     # build program with state and bad instruction
 
@@ -90,6 +91,8 @@ def code_minimize(
 
     # test, if minimized fails (as wanted!)
     res = codecomparerunner.run(blocking=True, code=minimized_code.as_code(), **kwargs)
+    if res[0] != RunnerOutcome.ERROR:
+        return (res, None)
 
     return (res, minimized_code)
 
@@ -162,7 +165,7 @@ class CodeErrMinRunner(Runner):
             bad_idx=bad_idx,
             **self.runkwargs,
         )
-        if ret_minimize[0] != RunnerOutcome.ERROR:
+        if minimized_code is None:
             # minimization failed -> return reduction result
             return (code_status, res_code_block, ret_reduced)
         code_status = self.CODE_STATUS_MINIMIZED
