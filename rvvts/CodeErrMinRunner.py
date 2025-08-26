@@ -73,7 +73,7 @@ def code_minimize(
     res = codecheckrunner.run(blocking=True, code=good_code.as_code(), **kwargs)
     # "good code" causes error -> minimization failed
     if res[0] != RunnerOutcome.COMPLETE:
-        return (res, None)
+        return (False, res, None)
 
     # build program with state and bad instruction
 
@@ -89,10 +89,12 @@ def code_minimize(
     # test, if init code succeeed (as wanted!)
     res = codecomparerunner.run(blocking=True, code=minimized_code.as_code(), **kwargs)
     if res[0] != RunnerOutcome.COMPLETE:
+        # NOTE 1 (see also below at callee):
         # state init itself fails -> we can go two ways here:
         # 1. track original fail: we report a fail -> we get a reduced case of the original fail
-        return (res, None)
-        # 2. track state init fail: we repeat code reduction and minimization for the state (TODO)
+        #return (False, res, minimized_code)
+        # 2. track state init fail: we repeat code reduction and minimization for the state
+        return (False, res, minimized_code)
 
     # add bad fragment
     minimized_code.add(CodeFragment("    // INSTRUCTION"))
@@ -101,9 +103,9 @@ def code_minimize(
     # test, if minimized fails (as wanted!)
     res = codecomparerunner.run(blocking=True, code=minimized_code.as_code(), **kwargs)
     if res[0] != RunnerOutcome.ERROR:
-        return (res, None)
+        return (False, res, None)
 
-    return (res, minimized_code)
+    return (True, res, minimized_code)
 
 
 class CodeErrMinRunner(Runner):
@@ -179,7 +181,7 @@ class CodeErrMinRunner(Runner):
 
         # TRY TO MINIMIZE
 
-        (ret_minimize, minimized_code) = code_minimize(
+        (success, ret_minimize, minimized_code) = code_minimize(
             codecheckrunner=self.codecheckrunner,
             codecomparerunner=self.codecomparerunner,
             rv_extensions=self.rv_extensions,
@@ -188,9 +190,18 @@ class CodeErrMinRunner(Runner):
             bad_idx=bad_idx,
             **self.runkwargs,
         )
-        if minimized_code is None:
-            # minimization failed -> return reduction result
-            return (code_status, res_code_block, ret_reduced)
+        if not success:
+            if recursion:
+                # we are already investigating the init fragments recursively
+                raise Exception("internal error: redmin recursion")
+            # minimization failed
+            if minimized_code is None:
+                # other error -> minimization failed -> return reduction result
+                return (code_status, res_code_block, ret_reduced)
+            else:
+                # NOTE 1 (see also above in code_minimize):
+                # we got an the state initialization that caused problems -> redmin state
+                return self.redmin_code(minimized_code, recursion = True)
         code_status = self.CODE_STATUS_MINIMIZED
         res_code_block = minimized_code
 
