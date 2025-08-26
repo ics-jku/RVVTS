@@ -132,6 +132,55 @@ class CodeErrMinRunner(Runner):
         # runner for register values
         self.codecheckrunner = CodeCheckRunner(config=subconfig_check)
 
+
+    def redmin_code(self, code_block):
+
+        code_status = self.CODE_STATUS_EXECUTED
+        res_code_block = code_block
+
+        # TRY TO REDUCE
+
+        (good_idx, bad_idx, reduced_code, ret_reduced) = delta_code_reduction(
+            runner=self.codecomparerunner, code=code_block, log=False, **self.runkwargs
+        )
+        # CAUTION: good_idx == 0 does not indicate a failed reduction.
+        # It rather indicates that the first instruction is failing
+        # if good_idx == 0:
+        #    # no reduction possible -> return original result
+        #    return ret
+        code_status = self.CODE_STATUS_REDUCED
+        res_code_block = reduced_code
+
+        # TRY TO MINIMIZE
+
+        (ret_minimize, minimized_code) = code_minimize(
+            codecheckrunner=self.codecheckrunner,
+            codecomparerunner=self.codecomparerunner,
+            rv_extensions=self.rv_extensions,
+            code=code_block,
+            good_idx=good_idx,
+            bad_idx=bad_idx,
+            **self.runkwargs,
+        )
+        if ret_minimize[0] != RunnerOutcome.ERROR:
+            # minimization failed -> return reduction result
+            return (code_status, res_code_block, ret_reduced)
+        code_status = self.CODE_STATUS_MINIMIZED
+        res_code_block = minimized_code
+
+        bad_ins = str(
+            code_block.main_fragments.get_part(good_idx, good_idx + 1).as_list()[
+                -1
+            ]
+        )
+        bad_ins = bad_ins.strip().split("\n")[-1]  # last line
+        bad_ins = bad_ins.strip().split()[0]  # instr
+        self.error_cause = bad_ins
+        self.instr_errors[bad_ins] = self.instr_errors.get(bad_ins, 0) + 1
+
+        return (code_status, res_code_block, ret_minimize)
+
+
     def task(self):
 
         # test
@@ -160,49 +209,18 @@ class CodeErrMinRunner(Runner):
             return ret
         self.errors += 1
 
-        # TRY TO REDUCE
+        (code_status, res_code_block, ret) = self.redmin_code(self.code_block)
+        if code_status == self.CODE_STATUS_REDUCED:
+            self.reductions += 1
+        elif code_status == self.CODE_STATUS_MINIMIZED:
+            self.minimizations += 1
+        else:
+            raise Exception("internal error: invalid code_status from redmin")
 
-        (good_idx, bad_idx, reduced_code, ret_reduced) = delta_code_reduction(
-            runner=self.codecomparerunner, code=self.code_block, log=False, **self.runkwargs
-        )
-        # CAUTION: good_idx == 0 does not indicate a failed reduction.
-        # It rather indicates that the first instruction is failing
-        # if good_idx == 0:
-        #    # no reduction possible -> return original result
-        #    return ret
-        self.reductions += 1
-        self.code_status = self.CODE_STATUS_REDUCED
-        self.res_code_block = reduced_code
+        self.code_status = code_status
+        self.res_code_block = res_code_block
+        return ret
 
-        # TRY TO MINIMIZE
-
-        (ret_minimize, minimized_code) = code_minimize(
-            codecheckrunner=self.codecheckrunner,
-            codecomparerunner=self.codecomparerunner,
-            rv_extensions=self.rv_extensions,
-            code=self.code_block,
-            good_idx=good_idx,
-            bad_idx=bad_idx,
-            **self.runkwargs,
-        )
-        if ret_minimize[0] != RunnerOutcome.ERROR:
-            # minimization failed -> return reduction result
-            return ret_reduced
-        self.minimizations += 1
-        self.code_status = self.CODE_STATUS_MINIMIZED
-        self.res_code_block = minimized_code
-
-        bad_ins = str(
-            self.code_block.main_fragments.get_part(good_idx, good_idx + 1).as_list()[
-                -1
-            ]
-        )
-        bad_ins = bad_ins.strip().split("\n")[-1]  # last line
-        bad_ins = bad_ins.strip().split()[0]  # instr
-        self.error_cause = bad_ins
-        self.instr_errors[bad_ins] = self.instr_errors.get(bad_ins, 0) + 1
-
-        return ret_minimize
 
     def get_error_cause(self):
         return self.error_cause
