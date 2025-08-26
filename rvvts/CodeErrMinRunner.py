@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -12,7 +12,7 @@ from .CodeCheckRunner import CodeCheckRunner
 from .CodeCompareRunner import CodeCompareRunner
 
 
-def delta_code_reduction(runner, code, log=False):
+def delta_code_reduction(runner, code, log=False, **kwargs):
 
     start = 0
     end = code.main_len()
@@ -29,7 +29,7 @@ def delta_code_reduction(runner, code, log=False):
             print("good=", good, "bad=", bad, "test=", test, end=" -> ")
 
         test_code = code.get_part(start, test)
-        ret = runner.run(timeout=2.0, blocking=True, code=test_code.as_code())
+        ret = runner.run(blocking=True, code=test_code.as_code(), **kwargs)
         if ret[0] != RunnerOutcome.COMPLETE:
             if log:
                 print("bad")
@@ -163,7 +163,7 @@ class CodeErrMinRunner(Runner):
         # TRY TO REDUCE
 
         (good_idx, bad_idx, reduced_code, ret_reduced) = delta_code_reduction(
-            runner=self.codecomparerunner, code=self.code_block, log=False
+            runner=self.codecomparerunner, code=self.code_block, log=False, **self.runkwargs
         )
         # CAUTION: good_idx == 0 does not indicate a failed reduction.
         # It rather indicates that the first instruction is failing
