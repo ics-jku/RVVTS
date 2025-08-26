@@ -85,6 +85,15 @@ def code_minimize(
     # add state code
     ref_mstate = res[1]["ref:"]
     minimized_code.set_init_fragments(ref_mstate.as_CodeFragmentList())
+
+    # test, if init code succeeed (as wanted!)
+    res = codecomparerunner.run(blocking=True, code=minimized_code.as_code(), **kwargs)
+    if res[0] != RunnerOutcome.COMPLETE:
+        # state init itself fails -> we can go two ways here:
+        # 1. track original fail: we report a fail -> we get a reduced case of the original fail
+        return (res, None)
+        # 2. track state init fail: we repeat code reduction and minimization for the state (TODO)
+
     # add bad fragment
     minimized_code.add(CodeFragment("    // INSTRUCTION"))
     minimized_code.add(code.main_fragments.get_part(good_idx, bad_idx))
