@@ -20,7 +20,7 @@ def delta_code_reduction(runner, code, log=False, **kwargs):
     bad_code = code
     bad_ret = (RunnerOutcome.INVALID, None)
     bad = end
-    good = 0
+    good = -1
     test = bad // 2
 
     while bad - good > 1:
@@ -155,11 +155,13 @@ class CodeErrMinRunner(Runner):
         (good_idx, bad_idx, reduced_code, ret_reduced) = delta_code_reduction(
             runner=self.codecomparerunner, code=code_block, log=False, **self.runkwargs
         )
-        # CAUTION: good_idx == 0 does not indicate a failed reduction.
-        # It rather indicates that the first instruction is failing
-        # if good_idx == 0:
-        #    # no reduction possible -> return original result
-        #    return ret
+        if good_idx < 0:
+            # the state initialization itself is the problem -> redmin state itself
+            code_block = CodeBlock(
+                    main_fragments=code_block.init_fragments,
+            )
+            return self.redmin_code(code_block)
+
         code_status = self.CODE_STATUS_REDUCED
         res_code_block = reduced_code
 
