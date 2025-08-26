@@ -159,13 +159,14 @@ class CodeErrMinRunner(Runner):
                 **self.runkwargs)
         if res[0] != RunnerOutcome.COMPLETE:
             if recursion:
-                # we are already investigating the init fragments recursively
-                raise Exception("internal error: redmin recursion")
-            # the state initialization itself is the problem -> redmin state itself
-            code_block = CodeBlock(
-                    main_fragments=code_block.init_fragments,
-            )
-            return self.redmin_code(code_block, recursion = True)
+                # we are already investigating the init fragments recursively -> stop
+                return (code_status, res_code_block, None)
+            else:
+                # the state initialization itself is the problem -> redmin state itself
+                code_block = CodeBlock(
+                        main_fragments=code_block.init_fragments,
+                )
+                return self.redmin_code(code_block, recursion = True)
 
         # TRY TO REDUCE
 
@@ -191,12 +192,9 @@ class CodeErrMinRunner(Runner):
             **self.runkwargs,
         )
         if not success:
-            if recursion:
-                # we are already investigating the init fragments recursively
-                raise Exception("internal error: redmin recursion")
             # minimization failed
-            if minimized_code is None:
-                # other error -> minimization failed -> return reduction result
+            if recursion or (minimized_code is None):
+                # recursion or other error -> minimization failed -> return reduction result
                 return (code_status, res_code_block, ret_reduced)
             else:
                 # NOTE 1 (see also above in code_minimize):
@@ -247,7 +245,10 @@ class CodeErrMinRunner(Runner):
         self.errors += 1
 
         (code_status, res_code_block, ret2) = self.redmin_code(self.code_block)
-        if code_status == self.CODE_STATUS_REDUCED:
+        if code_status == self.CODE_STATUS_EXECUTED:
+            # nothing to do
+            pass
+        elif code_status == self.CODE_STATUS_REDUCED:
             self.reductions += 1
             ret = ret2
         elif code_status == self.CODE_STATUS_MINIMIZED:
