@@ -150,17 +150,26 @@ class CodeErrMinRunner(Runner):
         code_status = self.CODE_STATUS_EXECUTED
         res_code_block = code_block
 
+        # TEST INIT FRAGMENTS
+        res = self.codecomparerunner.run(
+                blocking=True,
+                code=CodeBlock(main_fragments = code_block.init_fragments).as_code(),
+                **self.runkwargs)
+        if res[0] != RunnerOutcome.COMPLETE:
+            # the state initialization itself is the problem -> redmin state itself
+            code_block = CodeBlock(
+                    main_fragments=code_block.init_fragments,
+            )
+            return self.redmin_code(code_block)
+
         # TRY TO REDUCE
 
         (good_idx, bad_idx, reduced_code, ret_reduced) = delta_code_reduction(
             runner=self.codecomparerunner, code=code_block, log=False, **self.runkwargs
         )
         if good_idx < 0:
-            # the state initialization itself is the problem -> redmin state itself
-            code_block = CodeBlock(
-                    main_fragments=code_block.init_fragments,
-            )
-            return self.redmin_code(code_block)
+            # the state initialization itself is the problem -> may not happen (was checked before)
+            return (code_status, code_block, None)
 
         code_status = self.CODE_STATUS_REDUCED
         res_code_block = reduced_code
