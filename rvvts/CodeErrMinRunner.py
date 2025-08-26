@@ -232,11 +232,14 @@ class CodeErrMinRunner(Runner):
             return ret
         self.errors += 1
 
-        (code_status, res_code_block, ret) = self.redmin_code(self.code_block)
+        (code_status, res_code_block, ret2) = self.redmin_code(self.code_block)
         if code_status == self.CODE_STATUS_REDUCED:
             self.reductions += 1
+            ret = ret2
         elif code_status == self.CODE_STATUS_MINIMIZED:
+            self.reductions += 1
             self.minimizations += 1
+            ret = ret2
         else:
             raise Exception("internal error: invalid code_status from redmin")
 
