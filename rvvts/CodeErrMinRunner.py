@@ -145,7 +145,7 @@ class CodeErrMinRunner(Runner):
         self.codecheckrunner = CodeCheckRunner(config=subconfig_check)
 
 
-    def redmin_code(self, code_block):
+    def redmin_code(self, code_block, recursion = False):
 
         code_status = self.CODE_STATUS_EXECUTED
         res_code_block = code_block
@@ -156,11 +156,14 @@ class CodeErrMinRunner(Runner):
                 code=CodeBlock(main_fragments = code_block.init_fragments).as_code(),
                 **self.runkwargs)
         if res[0] != RunnerOutcome.COMPLETE:
+            if recursion:
+                # we are already investigating the init fragments recursively
+                raise Exception("internal error: redmin recursion")
             # the state initialization itself is the problem -> redmin state itself
             code_block = CodeBlock(
                     main_fragments=code_block.init_fragments,
             )
-            return self.redmin_code(code_block)
+            return self.redmin_code(code_block, recursion = True)
 
         # TRY TO REDUCE
 
