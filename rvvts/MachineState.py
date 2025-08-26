@@ -520,23 +520,25 @@ class MachineState:
             if "q" in self.rv_extensions:
                 inst_fload = "flq"
 
-            f.add(CodeFragment("    // FLOATINGPOINT STATE DATA"))
-            f.add(CodeFragment("    j _float_data_end"))
-            f.add(CodeFragment("    .align 4"))
+            code = """\
+    // FLOATINGPOINT STATE DATA
+    j _float_data_end
+    .align 4\n"""
             for i in range(0, 32):
                 symname = "_reg_f" + str(i)
                 regname = "f" + str(i)
-                f.add(CodeFragment(gen_byte_data(symname, self.state[1][regname])))
-            f.add(CodeFragment("_float_data_end:"))
-            f.add(CodeFragment("    // FLOATINTPOINT STATE"))
+                code += gen_byte_data(symname, self.state[1][regname]) + "\n"
+            code += """\
+_float_data_end:
+    // FLOATINTPOINT STATE\n"""
             for i in range(0, 32):
                 symname = "_reg_f" + str(i)
                 regname = "f" + str(i)
-                f.add(CodeFragment("    la t0, " + symname))
-                f.add(CodeFragment("    " + inst_fload + "  " + regname + ", 0(t0)"))
+                code += "    la t0, " + symname + "\n"
+                code += "    " + inst_fload + "  " + regname + ", 0(t0)\n"
+            f.add(CodeFragment(code))
 
             f.add(CodeFragment("""\
-
     // restore fcsr = {dval}
     li t0, {val}
     csrrw zero, fcsr, t0\n""".format(
@@ -544,25 +546,27 @@ class MachineState:
                     val = hex(self.state[1]["fcsr"]))))
 
         if self.has_vector:
-            f.add(CodeFragment("    // VECTOR STATE DATA"))
-            f.add(CodeFragment("    j _vector_data_end"))
-            f.add(CodeFragment("    .align 4"))
+            code = """\
+    // VECTOR STATE DATA
+    j _vector_data_end
+    .align 4\n"""
             for i in range(0, 32):
                 symname = "_reg_v" + str(i)
                 regname = "v" + str(i)
-                f.add(CodeFragment(gen_byte_data(symname, self.state[1][regname])))
-            f.add(CodeFragment("_vector_data_end:"))
-            f.add(CodeFragment("    // VECTOR STATE"))
-            # clear potential vill
-            f.add(CodeFragment("    vsetvli t0, zero, e8, ta, ma"))
+                code += gen_byte_data(symname, self.state[1][regname]) + "\n"
+            code += """\
+_vector_data_end:
+    // VECTOR STATE (clear potential vill with vsetvli)
+    vsetvli t0, zero, e8, ta, ma\n"""
             for i in range(0, 32):
                 symname = "_reg_v" + str(i)
                 regname = "v" + str(i)
-                f.add(CodeFragment("    la t0, " + symname))
-                f.add(CodeFragment("    vl1r.v " + regname + ", (t0)"))
+                code += "    la t0, " + symname + "\n"
+                code += "    vl1r.v " + regname + ", (t0)\n"
+
+            f.add(CodeFragment(code))
 
             f.add(CodeFragment("""\
-
     // restore vl = {vl_dval}
     li t0, {vl_val}
     // restore vtype = {vtype_dval}
