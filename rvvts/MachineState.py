@@ -773,6 +773,7 @@ class DumpFile:
         self.xmemlen = config["xmemlen"]
         self.dmemstart = config["dmemstart"]
         self.dmemlen = config["dmemlen"]
+        self.keep_dumpfile = config.get("DumpFile_keep_dumpfile", False)
         self.filename = filename
         self.addr = addr
         self.len = 0
@@ -914,6 +915,9 @@ class DumpFile:
                 for vreg in val:
                     ret["v" + str(i)] = vreg
                     i += 1
+
+        if not self.keep_dumpfile:
+            self.delete()
 
         return ret
 
