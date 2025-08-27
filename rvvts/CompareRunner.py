@@ -8,6 +8,7 @@
 
 from .BasicRunner import Runner, RunnerOutcome
 from .RefCovRunner import RefCovRunner
+from .MachineState import MachineState
 
 
 class CompareRunner(Runner):
@@ -26,6 +27,12 @@ class CompareRunner(Runner):
         self.binary = ""
         self.timeout = 1.0
 
+        self.reset_run()
+
+    def reset_run(self):
+        self.ref_mstate = None
+        self.dut_mstate = None
+
     def task(self):
         self.CompareRunner_refcov.run(
             binary=self.binary, blocking=False, timeout=self.timeout
@@ -39,6 +46,11 @@ class CompareRunner(Runner):
         res_ref = (res_refcov[0], res_refcov[1]["ref:"])
         res_cov = (res_refcov[0], res_refcov[1]["cov:"])
         res_dut = self.CompareRunner_dut.get_result()
+
+        if isinstance(res_ref[1], MachineState):
+            self.ref_mstate = res_ref[1]
+        if isinstance(res_dut[1], MachineState):
+            self.dut_mstate = res_dut[1]
 
         if (
             res_refcov[0] != RunnerOutcome.COMPLETE
@@ -90,6 +102,7 @@ class CompareRunner(Runner):
             return (RunnerOutcome.ERROR, e)
 
     def run_handler(self, timeout=1.0, binary="", **kwargs):
+        self.reset_run()
         self.timeout = timeout
         self.binary = binary
         return super().run_handler(**kwargs)

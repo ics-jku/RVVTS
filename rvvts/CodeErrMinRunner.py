@@ -6,6 +6,8 @@
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
 
+import os
+import glob
 from .CodeBlock import CodeBlock, CodeFragment
 from .BasicRunner import Runner, RunnerOutcome, RunnerFile
 from .CodeCheckRunner import CodeCheckRunner
@@ -73,7 +75,7 @@ def code_minimize(
     res = codecheckrunner.run(blocking=True, code=good_code.as_code(), **kwargs)
     # "good code" causes error -> minimization failed
     if res[0] != RunnerOutcome.COMPLETE:
-        return (False, res, None)
+        return (False, res, None, None)
 
     # build program with state and bad instruction
 
@@ -92,9 +94,9 @@ def code_minimize(
         # NOTE 1 (see also below at callee):
         # state init itself fails -> we can go two ways here:
         # 1. track original fail: we report a fail -> we get a reduced case of the original fail
-        # return (False, res, minimized_code)
+        # return (False, res, None, None)
         # 2. track state init fail: we repeat code reduction and minimization for the state
-        return (False, res, minimized_code)
+        return (False, res, None, minimized_code)
 
     # add bad fragment
     minimized_code.add(CodeFragment("    // INSTRUCTION"))
@@ -103,9 +105,9 @@ def code_minimize(
     # test, if minimized fails (as wanted!)
     res = codecomparerunner.run(blocking=True, code=minimized_code.as_code(), **kwargs)
     if res[0] != RunnerOutcome.ERROR:
-        return (False, res, None)
+        return (False, res, None, None)
 
-    return (True, res, minimized_code)
+    return (True, res, ref_mstate, minimized_code)
 
 
 class CodeErrMinRunner(Runner):
@@ -149,6 +151,29 @@ class CodeErrMinRunner(Runner):
         # runner for register values
         self.codecheckrunner = CodeCheckRunner(config=subconfig_check)
 
+        self.reset_run()
+
+    def reset_run(self):
+        self.orig_code_block = None
+        self.orig_end_ref_mstate = None
+        self.orig_end_dut_mstate = None
+
+        self.res_code_block = None
+        self.res_end_ref_mstate = None
+        self.res_end_dut_mstate = None
+
+        self.red_code_block = None
+        self.red_end_ref_mstate = None
+        self.red_end_dut_mstate = None
+
+        self.min_code_block = None
+        self.min_beg_mstate = None
+        self.min_end_ref_mstate = None
+        self.min_end_dut_mstate = None
+
+        for f in glob.glob(self.dir + "/??_*.json"):
+            os.remove(f)
+
     def redmin_code(self, code_block, recursion=False):
 
         code_status = self.CODE_STATUS_EXECUTED
@@ -185,10 +210,13 @@ class CodeErrMinRunner(Runner):
 
         code_status = self.CODE_STATUS_REDUCED
         res_code_block = reduced_code
+        self.red_code_block = res_code_block
+        self.red_end_ref_mstate = self.codecomparerunner_red.compare_runner.ref_mstate
+        self.red_end_dut_mstate = self.codecomparerunner_red.compare_runner.dut_mstate
 
         # TRY TO MINIMIZE
 
-        (success, ret_minimize, minimized_code) = code_minimize(
+        (success, ret_minimize, min_beg_mstate, minimized_code) = code_minimize(
             codecheckrunner=self.codecheckrunner,
             codecomparerunner=self.codecomparerunner_min,
             rv_extensions=self.rv_extensions,
@@ -209,6 +237,10 @@ class CodeErrMinRunner(Runner):
 
         code_status = self.CODE_STATUS_MINIMIZED
         res_code_block = minimized_code
+        self.min_code_block = res_code_block
+        self.min_beg_mstate = min_beg_mstate
+        self.min_end_ref_mstate = self.codecomparerunner_min.compare_runner.ref_mstate
+        self.min_end_dut_mstate = self.codecomparerunner_min.compare_runner.dut_mstate
 
         bad_ins = str(
             code_block.main_fragments.get_part(good_idx, good_idx + 1).as_list()[-1]
@@ -224,11 +256,15 @@ class CodeErrMinRunner(Runner):
 
         # test
         ret = self.codecomparerunner_test.run(
-            blocking=True, code=self.code_block.as_code(), **self.runkwargs
+            blocking=True, code=self.orig_code_block.as_code(), **self.runkwargs
         )
 
         self.error_cause = "unknown"
-        self.res_code_block = self.code_block
+        self.res_code_block = self.orig_code_block
+        self.res_end_ref_mstate = self.codecomparerunner_test.compare_runner.ref_mstate
+        self.res_end_dut_mstate = self.codecomparerunner_test.compare_runner.dut_mstate
+        self.orig_end_ref_mstate = self.res_end_ref_mstate
+        self.orig_end_dut_mstate = self.res_end_dut_mstate
         self.code_status = self.CODE_STATUS_EXECUTED
         self.tests += 1
 
@@ -248,7 +284,7 @@ class CodeErrMinRunner(Runner):
             return ret
         self.errors += 1
 
-        (code_status, res_code_block, ret2) = self.redmin_code(self.code_block)
+        (code_status, res_code_block, ret2) = self.redmin_code(self.res_code_block)
         if code_status == self.CODE_STATUS_EXECUTED:
             # nothing to do
             pass
@@ -294,19 +330,47 @@ class CodeErrMinRunner(Runner):
                 + "\n"
             )
 
-        self.code_block.save(self.dir + "/code_block.json")
-        self.res_code_block.save(self.dir + "/res_code_block.json")
+        if ret[0] == RunnerOutcome.ERROR:
+            # if error -> re-run for later backup (e.g. ArchiveRunner)
+            ret = self.codecomparerunner_test.run(
+                blocking=True, code=self.res_code_block.as_code(), **self.runkwargs
+            )
+            self.res_end_ref_mstate = (
+                self.codecomparerunner_test.compare_runner.ref_mstate
+            )
+            self.res_end_dut_mstate = (
+                self.codecomparerunner_test.compare_runner.dut_mstate
+            )
 
-        if ret[0] != RunnerOutcome.ERROR:
-            return ret
+        # helper for saving mstate and code_blocks if not None
+        def save_data(data, filename):
+            if data is None:
+                return
+            data.save(self.dir + "/" + filename)
 
-        # if error -> re-run for later backup (e.g. ArchiveRunner)
-        return self.codecomparerunner_test.run(
-            blocking=True, code=self.res_code_block.as_code(), **self.runkwargs
-        )
+        save_data(self.orig_code_block, "00_orig_code_block.json")
+        save_data(self.orig_end_ref_mstate, "00_orig_end_ref_mstate.json")
+        save_data(self.orig_end_dut_mstate, "00_orig_end_dut_mstate.json")
+
+        save_data(self.red_code_block, "01_red_code_block.json")
+        save_data(self.red_end_ref_mstate, "01_red_end_ref_mstate.json")
+        save_data(self.red_end_dut_mstate, "01_red_end_dut_mstate.json")
+
+        save_data(self.min_code_block, "02_min_code_block.json")
+        save_data(self.min_beg_mstate, "02_min_beg_mstate.json")
+        save_data(self.min_end_ref_mstate, "02_min_end_ref_mstate.json")
+        save_data(self.min_end_dut_mstate, "02_min_end_dut_mstate.json")
+
+        save_data(self.res_code_block, "99_res_code_block.json")
+        save_data(self.res_end_ref_mstate, "99_res_end_ref_mstate.json")
+        save_data(self.res_end_dut_mstate, "99_res_end_dut_mstate.json")
+
+        return ret
 
     def run_handler(self, blocking, code_block, **kwargs):
 
+        self.reset_run()
         self.runkwargs = kwargs
-        self.code_block = code_block
+        self.orig_code_block = code_block
+
         return super().run_handler(blocking=blocking, **kwargs)
