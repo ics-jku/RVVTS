@@ -273,6 +273,7 @@ class MachineState:
         for regname in RVREGS_IDX_DICT:
             self.state[0][regname] = self.gen_value(value_mode, 0, max_regval)
         self.state[0]["zero"] = 0
+        self.state[0]["pc"] = 0
 
     def init_fregs(self, value_mode):
         if not self.has_float:
