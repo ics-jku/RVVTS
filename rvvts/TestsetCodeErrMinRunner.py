@@ -45,10 +45,9 @@ class TestsetCodeErrMinRunner(Runner):
 
     # subruns subrun laststate
     def task(self):
-
         # load next testcase
         self.subrun += 1
-        if self.subrun > self.subruns:
+        if self.subrun >= self.subruns:
             self.testset_idx += 1
 
             if self.testset_idx > self.testset_last_idx:
