@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -26,6 +26,7 @@ class GDBRunner(ProcessTimeoutRunner):
             filename=self.get_dir() + "/mem." + hex(config["memstart"]) + ".bin",
             addr=config["xmemstart"] + config["xmemlen"] - config["dumpfile_reserve"],
         )
+        self.mstate_filename = self.get_dir() + "/mstate.json"
 
         # create command file
         memend = config["memstart"] + config["memlen"]
@@ -77,7 +78,9 @@ class GDBRunner(ProcessTimeoutRunner):
 
             state = self.dumpfile.extract()
 
-            return (outcome, MachineState(self.config, (regs, state)))
+            mstate = MachineState(self.config, (regs, state))
+            mstate.save(self.mstate_filename)
+            return (outcome, mstate)
         except Exception as e:
             return (RunnerOutcome.ERROR, e)
 

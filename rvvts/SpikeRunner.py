@@ -24,6 +24,7 @@ class SpikeRunner(ProcessTimeoutRunner):
             config=config,
             addr=config["xmemstart"] + config["xmemlen"] - config["dumpfile_reserve"],
         )
+        self.mstate_filename = self.get_dir() + "/mstate.json"
 
         # create command file
         cmdstr = ""
@@ -94,7 +95,9 @@ class SpikeRunner(ProcessTimeoutRunner):
         except Exception as e:
             return (RunnerOutcome.ERROR, e)
 
-        return (outcome, MachineState(self.config, (regs, state)))
+        mstate = MachineState(self.config, (regs, state))
+        mstate.save(self.mstate_filename)
+        return (outcome, mstate)
 
     def run_handler(self, binary="", **kwargs):
         return super().run_handler(parameters=[binary], **kwargs)
