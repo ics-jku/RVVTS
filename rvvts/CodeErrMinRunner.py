@@ -141,7 +141,10 @@ class CodeErrMinRunner(Runner):
         subconfig_check["RefCovRunner_coverage"] = None
 
         # runner for tests
-        self.codecomparerunner = CodeCompareRunner(config=subconfig_compare)
+        self.codecomparerunner_test = CodeCompareRunner(config=subconfig_compare)
+        # runners for intermediate steps (no coverage)
+        self.codecomparerunner_red = CodeCompareRunner(config=subconfig_check)
+        self.codecomparerunner_min = self.codecomparerunner_red
 
         # runner for register values
         self.codecheckrunner = CodeCheckRunner(config=subconfig_check)
@@ -152,7 +155,7 @@ class CodeErrMinRunner(Runner):
         res_code_block = code_block
 
         # TEST INIT FRAGMENTS
-        res = self.codecomparerunner.run(
+        res = self.codecomparerunner_red.run(
             blocking=True,
             code=CodeBlock(main_fragments=code_block.init_fragments).as_code(),
             **self.runkwargs,
@@ -171,7 +174,10 @@ class CodeErrMinRunner(Runner):
         # TRY TO REDUCE
 
         (good_idx, bad_idx, reduced_code, ret_reduced) = delta_code_reduction(
-            runner=self.codecomparerunner, code=code_block, log=False, **self.runkwargs
+            runner=self.codecomparerunner_red,
+            code=code_block,
+            log=False,
+            **self.runkwargs,
         )
         if good_idx < 0:
             # the state initialization itself is the problem -> may not happen (was checked before)
@@ -184,7 +190,7 @@ class CodeErrMinRunner(Runner):
 
         (success, ret_minimize, minimized_code) = code_minimize(
             codecheckrunner=self.codecheckrunner,
-            codecomparerunner=self.codecomparerunner,
+            codecomparerunner=self.codecomparerunner_min,
             rv_extensions=self.rv_extensions,
             code=code_block,
             good_idx=good_idx,
@@ -200,6 +206,7 @@ class CodeErrMinRunner(Runner):
                 # NOTE 1 (see also above in code_minimize):
                 # we got an the state initialization that caused problems -> redmin state
                 return self.redmin_code(minimized_code, recursion=True)
+
         code_status = self.CODE_STATUS_MINIMIZED
         res_code_block = minimized_code
 
@@ -216,7 +223,7 @@ class CodeErrMinRunner(Runner):
     def task(self):
 
         # test
-        ret = self.codecomparerunner.run(
+        ret = self.codecomparerunner_test.run(
             blocking=True, code=self.code_block.as_code(), **self.runkwargs
         )
 
@@ -294,7 +301,7 @@ class CodeErrMinRunner(Runner):
             return ret
 
         # if error -> re-run for later backup (e.g. ArchiveRunner)
-        return self.codecomparerunner.run(
+        return self.codecomparerunner_test.run(
             blocking=True, code=self.res_code_block.as_code(), **self.runkwargs
         )
 
