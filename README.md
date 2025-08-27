@@ -19,8 +19,8 @@ More information on RVVTS can be found in the publications linked in the [last s
 
 ```
 ├── README.md                                                ... This file
-├── config_host.ipynb                                        ... Host-related configurations (see Install section!)
-├── config_internal.ipynb                                    ... Internal configurations (modify only if know what you are doing!)
+├── config_host.py                                           ... Host-related configurations (see Installation/Setup section!)
+├── config_base.py                                           ... Internal configurations (modify only if you know what you are doing!)
 ├── FuzzCodeErrMinRunnerTests.ipynb                          ... Jupyter notebook demonstrating interactive and
                                                                  semi-automated testing -> Good starting point for experiments!
 ├── CovGuidedFuzzerGenRunnerTests.ipynb                      ... Jupyter notebook demonstrating test set generation
@@ -95,7 +95,7 @@ Versions older than this use different parameters for the vector extension (vlen
     make -j$(nproc)
     ```
     You should now have a executable file ```spike``` in this directory.
- 4. Update ```spike_bin``` in ```config_host.ipynb```. Use the absolute path to the created ```spike``` executable
+ 4. Update ```spike_bin``` in ```config_host.py```. Use the absolute path to the created ```spike``` executable
 
 
 More detailed build instructions can be found in the documentation of the Spike simulator.
@@ -123,7 +123,7 @@ The [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain) i
     make newlib -j$(nproc)
     ```
     You should now have the executable files ```riscv64-unknown-elf-gcc``` and ```riscv64-unknown-elf-gdb``` in directory ```bin```.
- 4. Update ```gcc_bin``` and ```gdb_bin``` in ```config_host.ipynb```. Use the absolute paths to the created ```riscv64-unknown-elf-gcc``` and ```riscv64-unknown-elf-gdb``` executables
+ 4. Update ```gcc_bin``` and ```gdb_bin``` in ```config_host.py```. Use the absolute paths to the created ```riscv64-unknown-elf-gcc``` and ```riscv64-unknown-elf-gdb``` executables
 
 
 More detailed build instructions can be found in the documentation of the RISC-V GNU toolchain.
@@ -146,7 +146,7 @@ The distributed binaries are locked via a date check and the repo was not update
     cd imperas-riscv-tests
     ```
     You should now have the executable file ```riscvOVPsim.exe``` in directory ```riscv-ovpsim/bin/Linux64```.
- 2. Update ```riscvovpsim_bin``` in ```config_host.ipynb```. Use the absolute path to the ```riscvOVPsim.exe``` executable
+ 2. Update ```riscvovpsim_bin``` in ```config_host.py```. Use the absolute path to the ```riscvOVPsim.exe``` executable
 
 
 
@@ -168,7 +168,7 @@ The distributed binaries are locked via a date check and the repo was not update
     make vps -j$(nproc)
     ```
     You should now have the executable files ```tiny32-vp``` and ```tiny64-vp``` in directory ```vp/build/bin```.
- 4. Update ```vp_path``` in ```config_host.ipynb```. Use the absolute paths to ```vp/build/bin```
+ 4. Update ```vp_path``` in ```config_host.py```. Use the absolute paths to ```vp/build/bin```
 
 
 More detailed build instructions can be found in the documentation of the RISC-V GNU toolchain.
@@ -194,7 +194,7 @@ More detailed build instructions can be found in the documentation of the RISC-V
     make -j$(nproc)
     ```
     You should now have the executable files ```qemu-system-riscv32``` and ```qemu-system-riscv64``` in directory ```build```.
- 4. Update ```qemu_path``` in ```config_host.ipynb```. Use the absolute paths to ```build```
+ 4. Update ```qemu_path``` in ```config_host.py```. Use the absolute paths to ```build```
 
 
 
