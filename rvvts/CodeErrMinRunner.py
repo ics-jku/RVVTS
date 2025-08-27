@@ -143,7 +143,7 @@ class CodeErrMinRunner(Runner):
         subconfig_check["RefCovRunner_coverage"] = None
 
         # runner for tests
-        self.codecomparerunner_test = CodeCompareRunner(config=subconfig_compare)
+        self.codecomparerunner = CodeCompareRunner(config=subconfig_compare)
         # runners for intermediate steps (no coverage)
         self.codecomparerunner_red = CodeCompareRunner(config=subconfig_check)
         self.codecomparerunner_min = self.codecomparerunner_red
@@ -255,14 +255,14 @@ class CodeErrMinRunner(Runner):
     def task(self):
 
         # test
-        ret = self.codecomparerunner_test.run(
+        ret = self.codecomparerunner.run(
             blocking=True, code=self.orig_code_block.as_code(), **self.runkwargs
         )
 
         self.error_cause = "unknown"
         self.res_code_block = self.orig_code_block
-        self.res_end_ref_mstate = self.codecomparerunner_test.compare_runner.ref_mstate
-        self.res_end_dut_mstate = self.codecomparerunner_test.compare_runner.dut_mstate
+        self.res_end_ref_mstate = self.codecomparerunner.compare_runner.ref_mstate
+        self.res_end_dut_mstate = self.codecomparerunner.compare_runner.dut_mstate
         self.orig_end_ref_mstate = self.res_end_ref_mstate
         self.orig_end_dut_mstate = self.res_end_dut_mstate
         self.code_status = self.CODE_STATUS_EXECUTED
@@ -332,15 +332,11 @@ class CodeErrMinRunner(Runner):
 
         if ret[0] == RunnerOutcome.ERROR:
             # if error -> re-run for later backup (e.g. ArchiveRunner)
-            ret = self.codecomparerunner_test.run(
+            ret = self.codecomparerunner.run(
                 blocking=True, code=self.res_code_block.as_code(), **self.runkwargs
             )
-            self.res_end_ref_mstate = (
-                self.codecomparerunner_test.compare_runner.ref_mstate
-            )
-            self.res_end_dut_mstate = (
-                self.codecomparerunner_test.compare_runner.dut_mstate
-            )
+            self.res_end_ref_mstate = self.codecomparerunner.compare_runner.ref_mstate
+            self.res_end_dut_mstate = self.codecomparerunner.compare_runner.dut_mstate
 
         # helper for saving mstate and code_blocks if not None
         def save_data(data, filename):
