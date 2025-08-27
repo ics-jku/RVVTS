@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -24,7 +24,7 @@ class TestsetCodeErrMinRunner(Runner):
 
         # testlist
         self.globstr = config["testset_dir"] + "/**/" + config["testset_pattern"]
-        self.testset = glob.glob(self.globstr, recursive=True)
+        self.testset = sorted(glob.glob(self.globstr, recursive=True))
         self.testname = ""
         self.testset_len = len(self.testset)
         self.testset_last_idx = self.testset_len - 1
