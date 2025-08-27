@@ -18,6 +18,12 @@ class AraRunner(ProcessTimeoutRunner):
         self.rv_extensions = config["rv_extensions"]
         self.xlen = config["xlen"]
 
+        # ARA may hang on test case execution (running clock, but no instructions retired)
+        # with this we control, whether we count such cases as TIMEOUT or ERROR (with lastPC = -1)
+        # (handling it as error makes it possible to minimize the case with CodeErrMinRunner, but
+        # may hide the hang cases)
+        self.count_hang_as_error = config.get("AraRunner_count_hang_as_error", False)
+
         self.dumpfile = DumpFile(
             filename=self.get_dir() + "/dump.bin",
             config=config,
@@ -45,7 +51,12 @@ class AraRunner(ProcessTimeoutRunner):
                 if "pc" in s:
                     pc_idx = i
                 if "STALL" in s:
-                    return (RunnerOutcome.TIMEOUT, s)
+                    if self.count_hang_as_error:
+                        mstate = MachineState(self.config)
+                        mstate.state[1]["lastPC"] = -1
+                        return (RunnerOutcome.COMPLETE, mstate)
+                    else:
+                        return (RunnerOutcome.TIMEOUT, s)
             if pc_idx == -1:
                 raise Exception(
                     "Could not extract integer registers from testbench output"

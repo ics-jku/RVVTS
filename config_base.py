@@ -30,6 +30,12 @@ config = dict(
     # keep memory dumps (consumes significant amount of harddrive space)
     DumpFile_keep_dumpfile = False,
 
+    # ARA may hang on test case execution (running clock, but no instructions retired)
+    # with this we can control, whether we count such cases as TIMEOUT or ERROR (with lastPC-1)
+    # (handling it as error makes it possible to minimize the case with CodeErrMinRunner, but
+    # may hide the hang cases)
+    AraRunner_count_hang_as_error = True,
+
     archive_on_timeout = True,
     archive_on_ignore = True,
     archive_on_error = True,
