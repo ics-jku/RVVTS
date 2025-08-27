@@ -328,11 +328,6 @@ class MachineState:
             self.state[1]["mstatus.fs/vs"] = self.gen_value_from_selection(
                 value_mode, self.state[1]["mstatus.fs/vs"], 0x600, [0x000, 0x600]
             )
-            self.state[1]["vxrm"] = self.gen_value_from_selection(
-                value_mode, 0, 0x3, list(range(2**2))
-            )
-            self.state[1]["vxsat"] = 0  # TODO
-            self.state[1]["vcsr"] = self.gen_vcsr()
             vlmul = self.gen_value(value_mode, -3, 3)
             vsew = self.gen_value(value_mode, 0, 3)
             vma = self.gen_value(value_mode, 0, 1)
@@ -351,7 +346,13 @@ class MachineState:
             self.state[1]["vl"] = self.gen_value(
                 value_mode, 0, vlmax
             )  # TODO -> according vtype
-            self.state[1]["vstart"] = 0  # TODO
+            self.state[1]["vlenb"] = 0
+            self.state[1]["vstart"] = 0
+            self.state[1]["vxrm"] = self.gen_value_from_selection(
+                value_mode, 0, 0x3, list(range(2**2))
+            )
+            self.state[1]["vxsat"] = 0  # TODO
+            self.state[1]["vcsr"] = self.gen_vcsr()
 
             self.init_vregs(value_mode)
 
