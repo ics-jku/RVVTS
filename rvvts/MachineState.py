@@ -117,9 +117,8 @@ class MachineState:
         else:
             raise Exception("invalid value_mode " + str(value_mode))
 
-
     def dstate_add(self, parent, child, value):
-        if not parent in self.dstate:
+        if parent not in self.dstate:
             self.dstate[parent] = {}
         self.dstate[parent][child] = value
 
@@ -140,12 +139,12 @@ class MachineState:
         status = ["off", "initial", "clean", "dirty"]
 
         FS_SHIFT = 13
-        FS_MASK = (3<<FS_SHIFT)
+        FS_MASK = 3 << FS_SHIFT
         fs = (rval & FS_MASK) >> FS_SHIFT
         self.dstate_add(rname, "fs", status[fs])
 
         VS_SHIFT = 9
-        VS_MASK = (3<<VS_SHIFT)
+        VS_MASK = 3 << VS_SHIFT
         vs = (rval & VS_MASK) >> VS_SHIFT
         self.dstate_add(rname, "vs", status[vs])
 
@@ -156,16 +155,25 @@ class MachineState:
             return
 
         # exception flags
-        self.dstate_add(rname, "nx", True if rval & (1<<0) else False)
-        self.dstate_add(rname, "uf", True if rval & (1<<1) else False)
-        self.dstate_add(rname, "of", True if rval & (1<<2) else False)
-        self.dstate_add(rname, "dz", True if rval & (1<<3) else False)
-        self.dstate_add(rname, "nv", True if rval & (1<<4) else False)
+        self.dstate_add(rname, "nx", True if rval & (1 << 0) else False)
+        self.dstate_add(rname, "uf", True if rval & (1 << 1) else False)
+        self.dstate_add(rname, "of", True if rval & (1 << 2) else False)
+        self.dstate_add(rname, "dz", True if rval & (1 << 3) else False)
+        self.dstate_add(rname, "nv", True if rval & (1 << 4) else False)
 
         # rounding mode
-        RM = ["rne(0b000)", "rtz(0b001)", "rdn(0b010)", "rup(0b011)", "rmm(0b100)", "res0(0b101)", "res1(0b110)", "dyn(0b111)"]
+        RM = [
+            "rne(0b000)",
+            "rtz(0b001)",
+            "rdn(0b010)",
+            "rup(0b011)",
+            "rmm(0b100)",
+            "res0(0b101)",
+            "res1(0b110)",
+            "dyn(0b111)",
+        ]
         RM_SHIFT = 5
-        RM_MASK = (7<<RM_SHIFT)
+        RM_MASK = 7 << RM_SHIFT
         rm = (rval & RM_MASK) >> RM_SHIFT
         self.dstate_add(rname, "rm", RM[rm])
 
@@ -179,22 +187,40 @@ class MachineState:
         if rval is None:
             return
 
-        VILL_MASK = (1<<(self.xlen-1))
+        VILL_MASK = 1 << (self.xlen - 1)
         self.dstate_add(rname, "vill", True if rval & VILL_MASK else False)
-        VMA_MASK = (1<<7)
+        VMA_MASK = 1 << 7
         self.dstate_add(rname, "vma", True if rval & VMA_MASK else False)
-        VTA_MASK = (1<<6)
+        VTA_MASK = 1 << 6
         self.dstate_add(rname, "vta", True if rval & VTA_MASK else False)
 
-        VSEW = ["e8(0b000)", "e16(0b001)", "e32(0b010)", "e64(0b011)", "res0(0b100)", "res1(0b101)", "res2(0b110)", "res3(0b111)"]
+        VSEW = [
+            "e8(0b000)",
+            "e16(0b001)",
+            "e32(0b010)",
+            "e64(0b011)",
+            "res0(0b100)",
+            "res1(0b101)",
+            "res2(0b110)",
+            "res3(0b111)",
+        ]
         VSEW_SHIFT = 3
-        VSEW_MASK = (7<<VSEW_SHIFT)
+        VSEW_MASK = 7 << VSEW_SHIFT
         vsew = (rval & VSEW_MASK) >> VSEW_SHIFT
         self.dstate_add(rname, "vsew", VSEW[vsew])
 
-        VLMUL = ["m1(0b000)", "m2(0b001)", "m4(0b010)", "m8(0b011)", "res0(0b100)", "mf8(0b101)", "mf4(0b110)", "mf2(0b111)"]
+        VLMUL = [
+            "m1(0b000)",
+            "m2(0b001)",
+            "m4(0b010)",
+            "m8(0b011)",
+            "res0(0b100)",
+            "mf8(0b101)",
+            "mf4(0b110)",
+            "mf2(0b111)",
+        ]
         VLMUL_SHIFT = 0
-        VLMUL_MASK = (7<<VLMUL_SHIFT)
+        VLMUL_MASK = 7 << VLMUL_SHIFT
         vlmul = (rval & VLMUL_MASK) >> VLMUL_SHIFT
         self.dstate_add(rname, "vlmul", VLMUL[vlmul])
 
@@ -209,12 +235,12 @@ class MachineState:
             return
 
         # vxsat
-        self.dstate_add(rname, "vxsat", True if rval & (1<<0) else False)
+        self.dstate_add(rname, "vxsat", True if rval & (1 << 0) else False)
 
         # vector fixed point rounding mode
         VXRM = ["rnu(0b00)", "rne(0b01)", "rdn(0b10)", "rod(0b11)"]
         VXRM_SHIFT = 1
-        VXRM_MASK = (3<<VXRM_SHIFT)
+        VXRM_MASK = 3 << VXRM_SHIFT
         vxrm = (rval & VXRM_MASK) >> VXRM_SHIFT
         self.dstate_add(rname, "vxrm", VXRM[vxrm])
 
@@ -227,7 +253,6 @@ class MachineState:
         self.dstate_decode_fcsr()
         self.dstate_decode_vtype()
         self.dstate_decode_vcsr()
-
 
     # generate vcsr from vxrm and vxsat
     def gen_vcsr(self):
@@ -242,7 +267,6 @@ class MachineState:
         if self.has_vector:
             self.check_vcsr()
         self.dstate_decode()
-
 
     def init_iregs(self, value_mode):
         max_regval = (2 ** self.config["xlen"]) - 1
@@ -353,7 +377,12 @@ class MachineState:
             if regname != "pc":
                 regname = regname + "(x" + str(RVREGS_IDX_DICT[regname]) + ")"
             regname = regname.ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
-            output += regname + f"{val:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val) + ")\n"
+            output += (
+                regname
+                + f"{val:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}("
+                + str(val)
+                + ")\n"
+            )
 
         def state_entry_as_string(sname, val):
             res = ""
@@ -388,7 +417,7 @@ class MachineState:
 
         return output
 
-    def compare(self, other, diff_full = False):
+    def compare(self, other, diff_full=False):
         output = ""
         is_equal = True
 
@@ -412,7 +441,7 @@ class MachineState:
                 regname = regname + "(x" + str(RVREGS_IDX_DICT[regname]) + ")"
             regname = regname.ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
 
-            if diff_full or entry_is_equal == False:
+            if diff_full or not entry_is_equal:
                 if not entry_is_equal:
                     diff = "X"
                 else:
@@ -435,8 +464,16 @@ class MachineState:
                 val_ref_str = str(val_ref)
                 val_dut_str = str(val_dut)
             elif isinstance(val_ref, int) and isinstance(val_dut, int):
-                val_ref_str = f"{val_ref:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val_ref) + ")"
-                val_dut_str = f"{val_dut:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val_dut) + ")"
+                val_ref_str = (
+                    f"{val_ref:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}("
+                    + str(val_ref)
+                    + ")"
+                )
+                val_dut_str = (
+                    f"{val_dut:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}("
+                    + str(val_dut)
+                    + ")"
+                )
             elif isinstance(val_ref, bytes) and isinstance(val_dut, bytes):
                 val_ref_str = " ".join("{:02x}".format(x) for x in val_ref)
                 val_dut_str = " ".join("{:02x}".format(x) for x in val_dut)
@@ -444,8 +481,7 @@ class MachineState:
                 val_ref_str = str(val_ref)
                 val_dut_str = str(val_dut)
 
-
-            if diff_full or is_equal == False:
+            if diff_full or not is_equal:
                 if not is_equal:
                     diff = "X"
                 else:
@@ -467,8 +503,8 @@ class MachineState:
                         else:
                             return "^^"
 
-                    res += (
-                        " ".join([str_helper(a, b) for a, b in zip(val_ref, val_dut)])
+                    res += " ".join(
+                        [str_helper(a, b) for a, b in zip(val_ref, val_dut)]
                     )
 
             return (is_equal, res)
@@ -485,18 +521,22 @@ class MachineState:
         for sname in state_ref.keys():
             val_ref = state_ref[sname]
             val_dut = state_dut[sname]
-            (entry_is_equal, res) = state_entry_compare(sname, val_ref, val_dut, diff_full)
+            (entry_is_equal, res) = state_entry_compare(
+                sname, val_ref, val_dut, diff_full
+            )
             if not entry_is_equal:
                 is_equal = False
-            if diff_full or entry_is_equal == False:
+            if diff_full or not entry_is_equal:
                 output += res + "\n"
             # output dstats
             dstatekeys = self.dstate.get(sname, {}).keys()
             for dsname in dstatekeys:
                 dval_ref = self.dstate[sname][dsname]
                 dval_dut = other.dstate[sname][dsname]
-                (entry_is_equal, res) = state_entry_compare(" " + sname + "." + dsname, dval_ref, dval_dut, diff_full)
-                if diff_full or entry_is_equal == False:
+                (entry_is_equal, res) = state_entry_compare(
+                    " " + sname + "." + dsname, dval_ref, dval_dut, diff_full
+                )
+                if diff_full or not entry_is_equal:
                     output += res + "\n"
 
         return (is_equal, output)
@@ -538,12 +578,17 @@ _float_data_end:
                 code += "    " + inst_fload + "  " + regname + ", 0(t0)\n"
             f.add(CodeFragment(code))
 
-            f.add(CodeFragment("""\
+            f.add(
+                CodeFragment(
+                    """\
     // restore fcsr = {dval}
     li t0, {val}
     csrrw zero, fcsr, t0\n""".format(
-                    dval = self.dstate_entry_as_string("fcsr"),
-                    val = hex(self.state[1]["fcsr"]))))
+                        dval=self.dstate_entry_as_string("fcsr"),
+                        val=hex(self.state[1]["fcsr"]),
+                    )
+                )
+            )
 
         if self.has_vector:
             code = """\
@@ -566,37 +611,51 @@ _vector_data_end:
 
             f.add(CodeFragment(code))
 
-            f.add(CodeFragment("""\
+            f.add(
+                CodeFragment(
+                    """\
     // restore vl = {vl_dval}
     li t0, {vl_val}
     // restore vtype = {vtype_dval}
     li t1, {vtype_val}
     vsetvl zero, t0, t1\n""".format(
-                vl_dval = self.state[1]["vl"],
-                vl_val = hex(self.state[1]["vl"]),
-                vtype_dval = self.dstate_entry_as_string("vtype"),
-                vtype_val = hex(self.state[1]["vtype"]))))
-
+                        vl_dval=self.state[1]["vl"],
+                        vl_val=hex(self.state[1]["vl"]),
+                        vtype_dval=self.dstate_entry_as_string("vtype"),
+                        vtype_val=hex(self.state[1]["vtype"]),
+                    )
+                )
+            )
 
             for csr in ["vstart", "vcsr"]:
-                f.add(CodeFragment("""\
+                f.add(
+                    CodeFragment(
+                        """\
     // restore {name} = {dval}
     li t0, {val}
     csrrw zero, {name}, t0\n""".format(
-                        name = csr,
-                        dval = self.dstate_entry_as_string(csr),
-                        val = hex(self.state[1][csr]))))
+                            name=csr,
+                            dval=self.dstate_entry_as_string(csr),
+                            val=hex(self.state[1][csr]),
+                        )
+                    )
+                )
 
         f.add(CodeFragment("    // STATE"))
-        f.add(CodeFragment("""\
+        f.add(
+            CodeFragment(
+                """\
 
     // restore mstatus.fs/vs = {dval}
     li t0, 0x6600
     csrc mstatus, t0
     li t0, {val}
     csrs mstatus, t0\n""".format(
-                dval = self.dstate_entry_as_string("mstatus.fs/vs"),
-                val = hex(self.state[1]["mstatus.fs/vs"]))))
+                    dval=self.dstate_entry_as_string("mstatus.fs/vs"),
+                    val=hex(self.state[1]["mstatus.fs/vs"]),
+                )
+            )
+        )
 
         f.add(CodeFragment("    // restore registers"))
         for regname, regval in self.state[0].items():

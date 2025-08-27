@@ -56,7 +56,7 @@ class CodeElement:
 
 
 class CodeFragment(CodeElement):
-    def __init__(self, code = "", ann = {}):
+    def __init__(self, code="", ann={}):
         super().__init__()
         self.code = code
         self.ann = ann

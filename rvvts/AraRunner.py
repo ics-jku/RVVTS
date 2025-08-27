@@ -7,9 +7,7 @@
 #
 
 from .MachineState import MachineState, DumpFile, RVREGS_IDX_DICT
-from .BasicRunner import ProcessTimeoutRunner, RunnerOutcome, RunnerFile
-
-import re
+from .BasicRunner import ProcessTimeoutRunner, RunnerOutcome
 
 
 class AraRunner(ProcessTimeoutRunner):
@@ -19,7 +17,7 @@ class AraRunner(ProcessTimeoutRunner):
         self.config = config
         self.rv_extensions = config["rv_extensions"]
         self.xlen = config["xlen"]
-        
+
         self.dumpfile = DumpFile(
             filename=self.get_dir() + "/dump.bin",
             config=config,
@@ -27,7 +25,7 @@ class AraRunner(ProcessTimeoutRunner):
         )
         self.mstate_filename = self.get_dir() + "/mstate.json"
 
-        self.set_program([config["ara_tb_bin"],"-l"])
+        self.set_program([config["ara_tb_bin"], "-l"])
 
     def task_pre(self):
         self.dumpfile.delete()
@@ -45,16 +43,20 @@ class AraRunner(ProcessTimeoutRunner):
             pc_idx = -1
             for i, s in enumerate(tmp):
                 if "pc" in s:
-                  pc_idx = i
+                    pc_idx = i
                 if "STALL" in s:
-                  return (RunnerOutcome.TIMEOUT,s)
+                    return (RunnerOutcome.TIMEOUT, s)
             if pc_idx == -1:
-                raise Exception("Could not extract integer registers from testbench output")
+                raise Exception(
+                    "Could not extract integer registers from testbench output"
+                )
             regs["pc"] = int(tmp[pc_idx].split(" ")[1])
-                    
-            for i in range(0,32,1):
-                reg_name = list(RVREGS_IDX_DICT.keys())[list(RVREGS_IDX_DICT.values()).index(i)]
-                regs[reg_name] = int(tmp[pc_idx+1+i].split(" ")[1])
+
+            for i in range(0, 32, 1):
+                reg_name = list(RVREGS_IDX_DICT.keys())[
+                    list(RVREGS_IDX_DICT.values()).index(i)
+                ]
+                regs[reg_name] = int(tmp[pc_idx + 1 + i].split(" ")[1])
 
             state = self.dumpfile.extract()
 
@@ -66,4 +68,4 @@ class AraRunner(ProcessTimeoutRunner):
         return (outcome, mstate)
 
     def run_handler(self, binary="", **kwargs):
-        return super().run_handler(parameters=["ram,"+binary+",elf"], **kwargs)
+        return super().run_handler(parameters=["ram," + binary + ",elf"], **kwargs)

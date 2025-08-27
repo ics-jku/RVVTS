@@ -92,7 +92,7 @@ def code_minimize(
         # NOTE 1 (see also below at callee):
         # state init itself fails -> we can go two ways here:
         # 1. track original fail: we report a fail -> we get a reduced case of the original fail
-        #return (False, res, minimized_code)
+        # return (False, res, minimized_code)
         # 2. track state init fail: we repeat code reduction and minimization for the state
         return (False, res, minimized_code)
 
@@ -146,17 +146,17 @@ class CodeErrMinRunner(Runner):
         # runner for register values
         self.codecheckrunner = CodeCheckRunner(config=subconfig_check)
 
-
-    def redmin_code(self, code_block, recursion = False):
+    def redmin_code(self, code_block, recursion=False):
 
         code_status = self.CODE_STATUS_EXECUTED
         res_code_block = code_block
 
         # TEST INIT FRAGMENTS
         res = self.codecomparerunner.run(
-                blocking=True,
-                code=CodeBlock(main_fragments = code_block.init_fragments).as_code(),
-                **self.runkwargs)
+            blocking=True,
+            code=CodeBlock(main_fragments=code_block.init_fragments).as_code(),
+            **self.runkwargs,
+        )
         if res[0] != RunnerOutcome.COMPLETE:
             if recursion:
                 # we are already investigating the init fragments recursively -> stop
@@ -164,9 +164,9 @@ class CodeErrMinRunner(Runner):
             else:
                 # the state initialization itself is the problem -> redmin state itself
                 code_block = CodeBlock(
-                        main_fragments=code_block.init_fragments,
+                    main_fragments=code_block.init_fragments,
                 )
-                return self.redmin_code(code_block, recursion = True)
+                return self.redmin_code(code_block, recursion=True)
 
         # TRY TO REDUCE
 
@@ -199,14 +199,12 @@ class CodeErrMinRunner(Runner):
             else:
                 # NOTE 1 (see also above in code_minimize):
                 # we got an the state initialization that caused problems -> redmin state
-                return self.redmin_code(minimized_code, recursion = True)
+                return self.redmin_code(minimized_code, recursion=True)
         code_status = self.CODE_STATUS_MINIMIZED
         res_code_block = minimized_code
 
         bad_ins = str(
-            code_block.main_fragments.get_part(good_idx, good_idx + 1).as_list()[
-                -1
-            ]
+            code_block.main_fragments.get_part(good_idx, good_idx + 1).as_list()[-1]
         )
         bad_ins = bad_ins.strip().split("\n")[-1]  # last line
         bad_ins = bad_ins.strip().split()[0]  # instr
@@ -214,7 +212,6 @@ class CodeErrMinRunner(Runner):
         self.instr_errors[bad_ins] = self.instr_errors.get(bad_ins, 0) + 1
 
         return (code_status, res_code_block, ret_minimize)
-
 
     def task(self):
 
@@ -261,7 +258,6 @@ class CodeErrMinRunner(Runner):
         self.code_status = code_status
         self.res_code_block = res_code_block
         return ret
-
 
     def get_error_cause(self):
         return self.error_cause

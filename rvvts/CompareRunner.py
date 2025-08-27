@@ -58,7 +58,9 @@ class CompareRunner(Runner):
             return (RunnerOutcome.ERROR, res_output)
 
         try:
-            (is_equal, output) = res_ref[1].compare(res_dut[1], diff_full = self.mstate_diff_full)
+            (is_equal, output) = res_ref[1].compare(
+                res_dut[1], diff_full=self.mstate_diff_full
+            )
             if is_equal:
                 outcome = RunnerOutcome.COMPLETE
             else:

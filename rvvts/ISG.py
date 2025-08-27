@@ -44,16 +44,17 @@ def is_nonterminal(s):
 def grammarISG(
     grammar,
     start_symbol=START_SYMBOL,
-    log = False,
+    log=False,
 ):
 
     term = start_symbol
     ntsyms = nonterminals(term)
 
     gann = {}
+
     def gann_add(ann):
         # create union of annotations
-        for k,e in ann.items():
+        for k, e in ann.items():
             if not isinstance(e, set):
                 e = {e}
             if k not in gann:
@@ -90,7 +91,9 @@ def grammarISG(
                 ann = copy.deepcopy(exp[1])
                 exp = exp[0]
                 if not isinstance(ann, dict):
-                    raise ExpansionException("Annotation in " + repr(exp) + " is not a dictionary")
+                    raise ExpansionException(
+                        "Annotation in " + repr(exp) + " is not a dictionary"
+                    )
 
                 # resolve value substitutions ("_") in annotations
                 val = None
@@ -103,7 +106,7 @@ def grammarISG(
 
                     # recursively evaluate value of expression once
                     if val is None:
-                        (val, sann) = grammarISG(grammar, start_symbol = exp)
+                        (val, sann) = grammarISG(grammar, start_symbol=exp)
                         exp = val
                         # add subexp annotations to global annotations
                         gann_add(sann)
@@ -113,7 +116,9 @@ def grammarISG(
                 gann_add(ann)
 
             else:
-                raise ExpansionException("Cannot expand " + repr(exp) + ": unknown type")
+                raise ExpansionException(
+                    "Cannot expand " + repr(exp) + ": unknown type"
+                )
 
         # update term and nsyms
         term = term.replace(ntsym, exp, 1)
@@ -337,7 +342,7 @@ class RVBoundedLoadStoreGenerator:
     def _get_int_imm(self, bits):
         return random.randint(-(2 ** (bits - 1)), +(2 ** (bits - 1)) - 1)
 
-    def _gen_code(self, store = False, instr_name="", instr_alignment=1):
+    def _gen_code(self, store=False, instr_name="", instr_alignment=1):
         # generates the marked part in given bounds
         # "<LOAD/STORE_instr> <rs2>, <imm12>(<rs1>)",
         #                     ---------------------
@@ -928,7 +933,6 @@ class RVVBoundedLoadStoreGenerator:
             dep_ann.add("vmask")
         return (code, {"clob": clob_ann, "dep": dep_ann})
 
-
     # Generate instructions from 7.5. Vector Strided Instructions and 7.8.2. Vector Strided Segment Loads and Stores
     # Difference to other generators: Instead of using run-time values from registers and modifying then according
     # to bounds, we explicitly generate random values and set registers accordingly.
@@ -998,7 +1002,6 @@ class RVVBoundedLoadStoreGenerator:
         if masked:
             dep_ann.add("vmask")
         return (code, {"clob": clob_ann, "dep": dep_ann})
-
 
     # NOTE: The number of bits encoded in the instruction determines the eww of the index
     # vector, *NOT* the size of the load/store (sew of data vector). Therefore: Alignment depends
@@ -1086,7 +1089,8 @@ class RVVBoundedLoadStoreGenerator:
         self.regs.free_all()
 
         # TODO: clobber annotation: also track memory (mem, dmem, xmem)?
-        # NOTE: although vtype should be saved and restored, we have to mark it as dependency and clobbered in case anything goes wrong
+        # NOTE: although vtype should be saved and restored, we have to mark it as dependency
+        # and clobbered in case anything goes wrong
         dep_ann = {"vl", "vtype", rs1, vs_scratch}
         clob_ann = {"vstart", "vl", "vtype", rs_vtype, rs_vl, rs_scratch, rs1}
         if store:
@@ -1096,7 +1100,6 @@ class RVVBoundedLoadStoreGenerator:
         if masked:
             dep_ann.add("vmask")
         return (code, {"clob": clob_ann, "dep": dep_ann})
-
 
     def _gen(self, store):
         if store:
@@ -1207,16 +1210,17 @@ class RVVProgramGenerator(ProgramGenerator):
             "<vlmul>": ["mf8", "mf4", "mf2", "m1", "m2", "m4", "m8"],
             "<vta>": ["tu", "ta"],
             "<vma>": ["mu", "ma"],
-
             "<instr_v_compute>": [
                 "<instr_v_vector_integer>",
-                ("<instr_v_fixed_point>", {"dep": {"vxrm", "vxsat", "vcsr"}, "clob": {"vxsat", "vcsr"}}),
+                (
+                    "<instr_v_fixed_point>",
+                    {"dep": {"vxrm", "vxsat", "vcsr"}, "clob": {"vxsat", "vcsr"}},
+                ),
                 ("<instr_v_floating_point>", {"dep": {"fcsr"}, "clob": {"fcsr"}}),
                 "<instr_v_vector_reduction>",
                 "<instr_v_vector_mask>",
                 "<instr_v_vector_permutation>",
             ],
-
             # ++++ 11. VECTOR INTEGER
             "<instr_v_vector_integer>": [
                 # 11.1. single width int add/sub
@@ -1648,8 +1652,8 @@ class RVVProgramGenerator(ProgramGenerator):
             "<.v_nom>": [".v <vd>, <vs2>"],
             # masking
             "<vm>": [
-                    "",
-                    (", v0.t", {"dep": "vmask"}),
+                "",
+                (", v0.t", {"dep": "vmask"}),
             ],
             "<vm2>": ("v0", {"dep": "vmask"}),
             # integer registers
