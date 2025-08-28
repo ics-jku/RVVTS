@@ -1125,6 +1125,8 @@ class RVVProgramGenerator(ProgramGenerator):
 
         self.has_float = sum(e in config["rv_extensions"] for e in "fdq") > 0
 
+        self.quirk_ara_csrs = config.get("quirk_ara_csrs", False)
+
         self.csrmg = CSRModGenerator()
         self.rrig = RVRandRegImmGenerator()
         self.vrrig = RVVRandRegImmGenerator()
@@ -1163,7 +1165,12 @@ class RVVProgramGenerator(ProgramGenerator):
             return ""
 
     def gen_set_vxrm(self):
-        return self.csrmg.gen_csr_mod("vxrm", 0x3, list(range(2**2)))
+        if self.quirk_ara_csrs:
+            # vxrm is not writable on ARA -> prevent other values than 0
+            vxrm_range = [0]
+        else:
+            vxrm_range = list(range(2**2))
+        return self.csrmg.gen_csr_mod("vxrm", 0x3, vxrm_range)
 
     def __def_grammar(self):
         self.grammar = {

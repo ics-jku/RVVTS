@@ -36,6 +36,11 @@ config = dict(
     # may hide the hang cases)
     AraRunner_count_hang_as_error = True,
 
+    # vcsr is not writable with other values than 0 on ARA (register is always 0)
+    # With this we enable a quirk in ISG and MachineState which prevents generation of
+    # code that sets vcsr to other values than 0
+    quirk_ara_csrs = False,
+
     archive_on_timeout = True,
     archive_on_ignore = True,
     archive_on_error = True,

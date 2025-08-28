@@ -71,6 +71,8 @@ class MachineState:
         self.has_float = sum(e in self.rv_extensions for e in "fdq") > 0
         self.has_vector = "v" in self.rv_extensions
 
+        self.quirk_ara_csrs = config.get("quirk_ara_csrs", False)
+
         # decoded state
         self.dstate = {}
         if not state:
@@ -334,7 +336,7 @@ class MachineState:
             vta = self.gen_value(value_mode, 0, 1)
             vtype = (
                 (vma << 7) | (vta << 6) | (vsew << 3) | (vlmul & ((1 << 3) - 1))
-            )  # TODO: vill = 0
+            )  # TODO: vill = 0 (TODO quirk_ara_csrs - vill can not be set on ARA)
             vsew_val = 8 << vsew
             if vlmul >= 0:
                 vlmul_val = 1 << vlmul
@@ -348,8 +350,14 @@ class MachineState:
             )  # TODO -> according vtype
             self.state[1]["vlenb"] = 0
             self.state[1]["vstart"] = 0
+
+            if self.quirk_ara_csrs:
+                # vxrm is not writable on ARA -> prevent other values than 0
+                vxrm_range = [0]
+            else:
+                vxrm_range = list(range(2**2))
             self.state[1]["vxrm"] = self.gen_value_from_selection(
-                value_mode, 0, 0x3, list(range(2**2))
+                value_mode, 0, 0x3, vxrm_range
             )
             self.state[1]["vxsat"] = 0  # TODO
             self.state[1]["vcsr"] = self.gen_vcsr()
