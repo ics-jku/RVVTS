@@ -86,12 +86,9 @@ class TestsetCodeErrMinRunner(Runner):
             blocking=True, code_block=self.code_block, **self.runkwargs
         )
 
-        # TODO: cleaner way to read ref results
-        self.sub_last_state = self.codeerrminrunner.codecomparerunner.compare_runner.CompareRunner_refcov.get_result()[
-            1
-        ][
-            "ref:"
-        ]
+        # get end mstate of original sub run on the reference
+        self.sub_last_state = self.codeerrminrunner.orig_end_ref_mstate
+
         self.res_code_block = self.codeerrminrunner.res_code_block
 
         return ret
