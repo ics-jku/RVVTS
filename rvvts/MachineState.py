@@ -350,14 +350,8 @@ class MachineState:
             )  # TODO -> according vtype
             self.state[1]["vlenb"] = 0
             self.state[1]["vstart"] = 0
-
-            if self.quirk_ara_csrs:
-                # vxrm is not writable on ARA -> prevent other values than 0
-                vxrm_range = [0]
-            else:
-                vxrm_range = list(range(2**2))
             self.state[1]["vxrm"] = self.gen_value_from_selection(
-                value_mode, 0, 0x3, vxrm_range
+                value_mode, 0, 0x3, list(range(2**2))
             )
             self.state[1]["vxsat"] = 0  # TODO
             self.state[1]["vcsr"] = self.gen_vcsr()
@@ -637,19 +631,32 @@ _vector_data_end:
                 )
             )
 
-            for csr in ["vstart", "vcsr"]:
-                f.add(
-                    CodeFragment(
-                        """\
-    // restore {name} = {dval}
+            f.add(
+                CodeFragment(
+                    """\
+    // restore vstart = {dval}
     li t0, {val}
-    csrrw zero, {name}, t0\n""".format(
-                            name=csr,
-                            dval=self.dstate_entry_as_string(csr),
-                            val=hex(self.state[1][csr]),
-                        )
+    csrrw zero, vstart, t0\n""".format(
+                        dval=self.dstate_entry_as_string("vstart"),
+                        val=hex(self.state[1]["vstart"]),
                     )
                 )
+            )
+
+            # vcsr is not settable with csrrw on ARA
+            # Since using csrrwi provides equivalent behavior, works
+            # on ARA and all possible values for vcsr fit in the
+            # 5 bit immediate, we use csrrwi here
+            f.add(
+                CodeFragment(
+                    """\
+    // restore vcsr = {dval}
+    csrrwi zero, vcsr, {val}\n""".format(
+                        dval=self.dstate_entry_as_string("vcsr"),
+                        val=hex(self.state[1]["vcsr"]),
+                    )
+                )
+            )
 
         f.add(CodeFragment("    // STATE"))
         f.add(

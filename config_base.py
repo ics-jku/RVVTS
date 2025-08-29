@@ -37,7 +37,7 @@ config = dict(
     AraRunner_count_hang_as_error = True,
 
     # vcsr is not writable with other values than 0 on ARA (register is always 0)
-    # With this we enable a quirk in ISG and MachineState which prevents generation of
+    # With this we enable a quirk in ISG which prevents generation of
     # code that sets vcsr to other values than 0
     quirk_ara_csrs = False,
 
