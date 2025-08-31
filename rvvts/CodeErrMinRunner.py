@@ -265,7 +265,10 @@ class CodeErrMinRunner(Runner):
             else:
                 # NOTE 1 (see also above in code_minimize):
                 # we got an the state initialization that caused problems -> redmin state
-                return self.redmin_code(minimized_code, recursion=True)
+                code_block = CodeBlock(
+                    main_fragments=minimized_code.init_fragments,
+                )
+                return self.redmin_code(code_block, recursion=True)
 
         if success_min_state:
             code_status = self.CODE_STATUS_MINIMIZED_STATE
