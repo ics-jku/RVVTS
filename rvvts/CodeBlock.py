@@ -39,6 +39,12 @@ class CodeElement:
     def __init__(self):
         pass
 
+    def set_ann(self, ann):
+        pass
+
+    def get_ann(self):
+        return {}
+
     def replace(self, oldvalue, newvalue):
         pass
 
@@ -60,6 +66,12 @@ class CodeFragment(CodeElement):
         super().__init__()
         self.code = code
         self.ann = ann
+
+    def set_ann(self, ann):
+        self.ann = ann
+
+    def get_ann(self):
+        return self.ann
 
     def replace(self, oldvalue, newvalue):
         self.code = self.code.replace(oldvalue, newvalue)
@@ -85,6 +97,16 @@ class CodeFragmentList(CodeElement):
         self.elements = []
         if fragment is not None:
             self.add(fragment)
+
+    def set_ann(self, ann):
+        if len(self.elements) == 0:
+            return
+        return self.elements[0].set_ann(ann)
+
+    def get_ann(self):
+        if len(self.elements) == 0:
+            return {}
+        return self.elements[0].get_ann()
 
     def replace(self, oldvalue, newvalue):
         for e in self.elements:

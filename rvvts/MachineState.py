@@ -5,6 +5,7 @@
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
+# TODO: support "ann" in other methods (dump, compare, ...)
 
 from .CodeBlock import CodeFragmentList, CodeFragment
 
@@ -545,7 +546,35 @@ class MachineState:
 
         return (is_equal, output)
 
-    def as_CodeFragmentList(self):
+    def ann2matchset(ann):
+        if ann is None:
+            return None
+        # add dep and clob to matchset
+        mset = ann.get("dep", set()).union(ann.get("clob", set()))
+
+        # be conservative -> if a vreg is used from a m8 vreg group then add the whole group
+        for grp in [0, 8, 16, 24]:
+            vgrp = {f"v{i}" for i in range(grp, grp + 8)}
+            for vreg in vgrp:
+                if vreg in mset:
+                    mset = mset.union(vgrp)
+                    break
+
+        return mset
+
+    def ismatch(mset, elem):
+        # none means no filtering
+        if mset is None:
+            return True
+        if elem in mset:
+            return True
+        return False
+
+    # TODO: rework (simplify/cleanup)
+    def as_CodeFragmentList(self, ann=None):
+
+        # create state element matchlist from ann
+        mset = MachineState.ann2matchset(ann)
 
         def gen_byte_data(symname, values):
             data = (symname + ":").ljust(9) + ".byte "
@@ -564,119 +593,143 @@ class MachineState:
             if "q" in self.rv_extensions:
                 inst_fload = "flq"
 
+            fp_regs = False
             code = """\
     // FLOATINGPOINT STATE DATA
     j _float_data_end
     .align 4\n"""
             for i in range(0, 32):
-                symname = "_reg_f" + str(i)
                 regname = "f" + str(i)
+                if not MachineState.ismatch(mset, regname):
+                    continue
+                fp_regs = True
+                symname = "_reg_f" + str(i)
                 code += gen_byte_data(symname, self.state[1][regname]) + "\n"
             code += """\
 _float_data_end:
     // FLOATINTPOINT STATE\n"""
             for i in range(0, 32):
-                symname = "_reg_f" + str(i)
                 regname = "f" + str(i)
+                if not MachineState.ismatch(mset, regname):
+                    continue
+                symname = "_reg_f" + str(i)
                 code += "    la t0, " + symname + "\n"
                 code += "    " + inst_fload + "  " + regname + ", 0(t0)\n"
-            f.add(CodeFragment(code))
+            if fp_regs:
+                f.add(CodeFragment(code))
 
-            f.add(
-                CodeFragment(
-                    """\
+            if MachineState.ismatch(mset, "fcsr"):
+                f.add(
+                    CodeFragment(
+                        """\
     // restore fcsr = {dval}
     li t0, {val}
     csrrw zero, fcsr, t0\n""".format(
-                        dval=self.dstate_entry_as_string("fcsr"),
-                        val=hex(self.state[1]["fcsr"]),
+                            dval=self.dstate_entry_as_string("fcsr"),
+                            val=hex(self.state[1]["fcsr"]),
+                        )
                     )
                 )
-            )
 
         if self.has_vector:
+            v_regs = False
             code = """\
     // VECTOR STATE DATA
     j _vector_data_end
     .align 4\n"""
             for i in range(0, 32):
-                symname = "_reg_v" + str(i)
                 regname = "v" + str(i)
+                if not MachineState.ismatch(mset, regname):
+                    continue
+                v_regs = True
+                symname = "_reg_v" + str(i)
                 code += gen_byte_data(symname, self.state[1][regname]) + "\n"
             code += """\
 _vector_data_end:
     // VECTOR STATE (clear potential vill with vsetvli)
     vsetvli t0, zero, e8, ta, ma\n"""
             for i in range(0, 32):
-                symname = "_reg_v" + str(i)
                 regname = "v" + str(i)
+                if not MachineState.ismatch(mset, regname):
+                    continue
+                symname = "_reg_v" + str(i)
                 code += "    la t0, " + symname + "\n"
                 code += "    vl1r.v " + regname + ", (t0)\n"
+            if v_regs:
+                f.add(CodeFragment(code))
 
-            f.add(CodeFragment(code))
-
-            f.add(
-                CodeFragment(
-                    """\
+            if MachineState.ismatch(mset, "vl") or MachineState.ismatch(mset, "vtype"):
+                f.add(
+                    CodeFragment(
+                        """\
     // restore vl = {vl_dval}
     li t0, {vl_val}
     // restore vtype = {vtype_dval}
     li t1, {vtype_val}
     vsetvl zero, t0, t1\n""".format(
-                        vl_dval=self.state[1]["vl"],
-                        vl_val=hex(self.state[1]["vl"]),
-                        vtype_dval=self.dstate_entry_as_string("vtype"),
-                        vtype_val=hex(self.state[1]["vtype"]),
+                            vl_dval=self.state[1]["vl"],
+                            vl_val=hex(self.state[1]["vl"]),
+                            vtype_dval=self.dstate_entry_as_string("vtype"),
+                            vtype_val=hex(self.state[1]["vtype"]),
+                        )
                     )
                 )
-            )
 
-            f.add(
-                CodeFragment(
-                    """\
+            if MachineState.ismatch(mset, "vstart"):
+                f.add(
+                    CodeFragment(
+                        """\
     // restore vstart = {dval}
     li t0, {val}
     csrrw zero, vstart, t0\n""".format(
-                        dval=self.dstate_entry_as_string("vstart"),
-                        val=hex(self.state[1]["vstart"]),
+                            dval=self.dstate_entry_as_string("vstart"),
+                            val=hex(self.state[1]["vstart"]),
+                        )
                     )
                 )
-            )
 
-            # vcsr is not settable with csrrw on ARA
-            # Since using csrrwi provides equivalent behavior, works
-            # on ARA and all possible values for vcsr fit in the
-            # 5 bit immediate, we use csrrwi here
+            if (
+                MachineState.ismatch(mset, "vcsr")
+                or MachineState.ismatch(mset, "vxrm")
+                or MachineState.ismatch(mset, "vxsat")
+            ):
+                # vcsr is not settable with csrrw on ARA
+                # Since using csrrwi provides equivalent behavior, works
+                # on ARA and all possible values for vcsr fit in the
+                # 5 bit immediate, we use csrrwi here
+                f.add(
+                    CodeFragment(
+                        """\
+    // restore vcsr = {dval}
+    csrrwi zero, vcsr, {val}\n""".format(
+                            dval=self.dstate_entry_as_string("vcsr"),
+                            val=hex(self.state[1]["vcsr"]),
+                        )
+                    )
+                )
+
+        if MachineState.ismatch(mset, "mstatus.fs/vs"):
+            f.add(CodeFragment("    // STATE"))
             f.add(
                 CodeFragment(
                     """\
-    // restore vcsr = {dval}
-    csrrwi zero, vcsr, {val}\n""".format(
-                        dval=self.dstate_entry_as_string("vcsr"),
-                        val=hex(self.state[1]["vcsr"]),
-                    )
-                )
-            )
-
-        f.add(CodeFragment("    // STATE"))
-        f.add(
-            CodeFragment(
-                """\
 
     // restore mstatus.fs/vs = {dval}
     li t0, 0x6600
     csrc mstatus, t0
     li t0, {val}
     csrs mstatus, t0\n""".format(
-                    dval=self.dstate_entry_as_string("mstatus.fs/vs"),
-                    val=hex(self.state[1]["mstatus.fs/vs"]),
+                        dval=self.dstate_entry_as_string("mstatus.fs/vs"),
+                        val=hex(self.state[1]["mstatus.fs/vs"]),
+                    )
                 )
             )
-        )
 
         f.add(CodeFragment("    // restore registers"))
         for regname, regval in self.state[0].items():
             if regname == "pc" or regname == "zero":
+                continue
+            if not MachineState.ismatch(mset, regname):
                 continue
             f.add(
                 CodeFragment(

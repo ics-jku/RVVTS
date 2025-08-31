@@ -60,6 +60,7 @@ def gen_byte_data(symname, values):
     return data[:-1] + ""
 
 
+# TODO: integrate in class and rework/cleanup return
 def code_minimize(
     codecheckrunner: CodeCheckRunner,
     codecomparerunner: CodeCompareRunner,
@@ -75,7 +76,9 @@ def code_minimize(
     res = codecheckrunner.run(blocking=True, code=good_code.as_code(), **kwargs)
     # "good code" causes error -> minimization failed
     if res[0] != RunnerOutcome.COMPLETE:
-        return (False, res, None, None)
+        return (False, False, res, None, None)
+    # get state code
+    ref_mstate = res[1]["ref:"]
 
     # build program with state and bad instruction
 
@@ -83,31 +86,55 @@ def code_minimize(
         init_fragments=good_code.init_fragments,
         deinit_fragments=good_code.deinit_fragments,
     )
+    # add bad fragment
+    minimized_fragment = code.main_fragments.get_part(good_idx, bad_idx)
+    minimized_code.add(
+        CodeFragment("    // INSTRUCTION (" + str(minimized_fragment.get_ann()) + ")")
+    )
+    minimized_code.add(minimized_fragment)
+    # ############# try to minimize with minimized state
 
-    # add state code
-    ref_mstate = res[1]["ref:"]
-    minimized_code.set_init_fragments(ref_mstate.as_CodeFragmentList())
+    # TODO: minimize state here
+    minimized_code.set_init_fragments(
+        ref_mstate.as_CodeFragmentList(minimized_fragment.get_ann())
+    )
 
     # test, if init code succeeed (as wanted!)
-    res = codecomparerunner.run(blocking=True, code=minimized_code.as_code(), **kwargs)
+    res = codecomparerunner.run(
+        blocking=True, code=minimized_code.init_fragments.as_code(), **kwargs
+    )
     if res[0] != RunnerOutcome.COMPLETE:
         # NOTE 1 (see also below at callee):
         # state init itself fails -> we can go two ways here:
         # 1. track original fail: we report a fail -> we get a reduced case of the original fail
         # return (False, res, None, None)
         # 2. track state init fail: we repeat code reduction and minimization for the state
-        return (False, res, None, minimized_code)
+        return (False, True, res, None, minimized_code)
 
-    # add bad fragment
-    minimized_code.add(CodeFragment("    // INSTRUCTION"))
-    minimized_code.add(code.main_fragments.get_part(good_idx, bad_idx))
+    # test, if minimized_state fails (as wanted!)
+    res = codecomparerunner.run(blocking=True, code=minimized_code.as_code(), **kwargs)
+    if res[0] == RunnerOutcome.ERROR:
+        return (True, True, res, ref_mstate, minimized_code)
+
+    # ############# does not fail -> try to minimize with full minimized state
+
+    # create testcase with full state
+    minimized_code.set_init_fragments(ref_mstate.as_CodeFragmentList())
+
+    # test, if init code succeeed (as wanted!)
+    res = codecomparerunner.run(
+        blocking=True, code=minimized_code.init_fragments.as_code(), **kwargs
+    )
+    if res[0] != RunnerOutcome.COMPLETE:
+        # see NOTE 1 from above
+        return (False, False, res, None, minimized_code)
 
     # test, if minimized fails (as wanted!)
     res = codecomparerunner.run(blocking=True, code=minimized_code.as_code(), **kwargs)
     if res[0] != RunnerOutcome.ERROR:
-        return (False, res, None, None)
+        return (False, False, res, None, None)
 
-    return (True, res, ref_mstate, minimized_code)
+    return (True, False, res, ref_mstate, minimized_code)
 
 
 class CodeErrMinRunner(Runner):
@@ -120,8 +147,10 @@ class CodeErrMinRunner(Runner):
         self.CODE_STATUS_EXECUTED = "0: executed"
         self.CODE_STATUS_REDUCED = "1: reduced"
         self.CODE_STATUS_MINIMIZED = "2: minimized"
+        self.CODE_STATUS_MINIMIZED_STATE = "4: minimized_state"
         self.code_status = None
 
+        # TODO: move these to a list -> simplify code
         self.tests = 0
         self.completes = 0
         self.ignores = 0
@@ -129,6 +158,7 @@ class CodeErrMinRunner(Runner):
         self.unknown_faults = 0
         self.errors = 0
         self.reductions = 0
+        self.minimizations_state = 0
         self.minimizations = 0
         self.instr_errors = {}
 
@@ -216,14 +246,16 @@ class CodeErrMinRunner(Runner):
 
         # TRY TO MINIMIZE
 
-        (success, ret_minimize, min_beg_mstate, minimized_code) = code_minimize(
-            codecheckrunner=self.codecheckrunner,
-            codecomparerunner=self.codecomparerunner_min,
-            rv_extensions=self.rv_extensions,
-            code=code_block,
-            good_idx=good_idx,
-            bad_idx=bad_idx,
-            **self.runkwargs,
+        (success, success_min_state, ret_minimize, min_beg_mstate, minimized_code) = (
+            code_minimize(
+                codecheckrunner=self.codecheckrunner,
+                codecomparerunner=self.codecomparerunner_min,
+                rv_extensions=self.rv_extensions,
+                code=code_block,
+                good_idx=good_idx,
+                bad_idx=bad_idx,
+                **self.runkwargs,
+            )
         )
         if not success:
             # minimization failed
@@ -235,7 +267,11 @@ class CodeErrMinRunner(Runner):
                 # we got an the state initialization that caused problems -> redmin state
                 return self.redmin_code(minimized_code, recursion=True)
 
-        code_status = self.CODE_STATUS_MINIMIZED
+        if success_min_state:
+            code_status = self.CODE_STATUS_MINIMIZED_STATE
+        else:
+            code_status = self.CODE_STATUS_MINIMIZED
+
         res_code_block = minimized_code
         self.min_code_block = res_code_block
         self.min_beg_mstate = min_beg_mstate
@@ -294,6 +330,9 @@ class CodeErrMinRunner(Runner):
         elif code_status == self.CODE_STATUS_MINIMIZED:
             self.reductions += 1
             self.minimizations += 1
+        elif code_status == self.CODE_STATUS_MINIMIZED_STATE:
+            self.reductions += 1
+            self.minimizations_state += 1
             ret = ret2
         else:
             raise Exception("internal error: invalid code_status from redmin")
@@ -327,6 +366,8 @@ class CodeErrMinRunner(Runner):
                 + str(self.reductions)
                 + "\nminimizations: "
                 + str(self.minimizations)
+                + "\nminimizations_state: "
+                + str(self.minimizations_state)
                 + "\n"
             )
 
