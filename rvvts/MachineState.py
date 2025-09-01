@@ -115,8 +115,9 @@ class MachineState:
         return (self.state[1]["vxrm"] << 1) | self.state[1]["vxsat"]
 
     def check_vcsr(self):
-        if self.gen_vcsr() != self.state[1]["vcsr"]:
-            raise Exception("vxrm + vxsat does not match vcsr")
+        if self.has_vector:
+            if self.gen_vcsr() != self.state[1]["vcsr"]:
+                raise Exception("vxrm + vxsat does not match vcsr")
 
     def check(self):
         # TODO improve
