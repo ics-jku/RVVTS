@@ -560,6 +560,10 @@ class MachineState:
                     mset = mset.union(vgrp)
                     break
 
+        # mask is stored in v0
+        if "vmask" in mset:
+            mset.add("v0")
+
         return mset
 
     def ismatch(mset, elem):
