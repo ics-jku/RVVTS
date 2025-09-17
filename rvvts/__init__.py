@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -23,6 +23,7 @@ from .SpikeRunner import *
 from .RISCVOVPSIMRunner import *
 from .QEMURunner import *
 from .VPRunner import *
+from .AraRunner import *
 
 from .ISG import *
 from .CovGuidedFuzzerGenRunner import *

@@ -29,6 +29,7 @@ More information on RVVTS can be found in the publications linked in the [last s
 ├── TestsetCodeErrMinRunnerTests.ipynb                       ... Jupyter notebook demonstrating execution of pre-generated
                                                                  test sets
 ├── LICENSE                                                  ... BSD 3-clause "New" or "Revised" License
+├── DUTS                                                     ... Additional material for specific DUTs (patches, ...)
 └── rvvts                                                    ... The core rvvts Python framework
 ```
 
@@ -39,7 +40,7 @@ More information on RVVTS can be found in the publications linked in the [last s
 ### Host System (Debian/Ubuntu)
 
 It it recommended to install the following packages.
-However, you can also follow the individual installation instructions of Spike, RISC-V VP++ and QEMU.
+However, you can also follow the individual installation instructions of Spike, RISC-V VP++, QEMU and PULP Ara.
 
 On Debian/Ubuntu:
 ```bash
@@ -196,6 +197,30 @@ More detailed build instructions can be found in the documentation of the RISC-V
     ```
     You should now have the executable files ```qemu-system-riscv32``` and ```qemu-system-riscv64``` in directory ```build```.
  4. Update ```qemu_path``` in ```config_host.ipynb```. Use the absolute paths to ```build```
+
+
+
+### PULP Ara (Optional)
+[PULP Ara](https://github.com/pulp-platform/ara) is an open-source, 64-bit RTL implementation of a RISC-V vector unit. Developed as part of the PULP platform, it operates as a coprocessor for the CVA6 scalar core and supports version 1.0 of the RISC-V Vector Extension.
+
+ 1. Clone Ara and enter the directory
+    ```
+    git clone https://github.com/pulp-platform/ara.git
+    cd ara
+    ```
+ 2. Optional: Select a specific qemu version
+    Tested with a6436df6ad and ab4158aeeb
+    ```
+    git checkout ab4158aeeb
+    ```
+ 3. Apply the RVVTS DUT Patch located in ```DUTS/PULP_ARA/ara_rvvts_dut_v1.patch```
+    (v1 compatible with a6436df6ad and ab4158aeeb)
+    ```
+    git am <rvvts>/DUTS/PULP_ARA/ara_rvvts_dut_v1.patch
+    ```
+ 4. Build the verilated Ara model following the original build instruction (README.md)
+    Result: ```<ara>/hardware/build/verilator/Vara_tb_verilator```
+ 5. Update ```ara_tb_bin``` in ```config_host.py``` accordingly.
 
 
 

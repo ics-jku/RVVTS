@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -19,7 +19,7 @@ class BuildRunner(ProcessTimeoutRunner):
         skip_on_exception = config["skip_on_exception"]
         xmemstart = config["xmemstart"]
         xmemlen = config["xmemlen"]
-        rv_extensions = config["rv_extensions"]
+        rv_extensions = config["rv_extensions"] + "_zifencei"
 
         xlen = config["xlen"]
         self.xlenb = xlen // 8
@@ -75,9 +75,13 @@ class BuildRunner(ProcessTimeoutRunner):
 _start:         # @xmemstart
     # jump to real start
     j _begin
-_stop:          # @xmemstart + 4 -> breakpoint
+_break:          # @xmemstart + 4 -> breakpoint
     # jump to real end
     j _end
+_stop:          # flush pipeline check for breakpoint in RTL models
+    fence.i
+    j _break
+
 
 # dummy HTIF symbols (needed for qemu)
 tohost: .dword 0
@@ -127,13 +131,13 @@ _end:
             self.asmhdr += self.dumpfile.vstate.gen_save()
             self.asmhdr += "    # save vector registers\n"
             self.asmhdr += self.dumpfile.vregs.gen_save()
-        self.asmhdr += """
+            self.asmhdr += """
 
     # restore gp
     csrrw gp, mscratch, gp
 
     # loop
-    j _stop      # jump to xmemstart + 4 (breakpoint)
+    j _stop      # jump to xmemstart + 8 (pre-breakpoint)
 
 _begin:
 """

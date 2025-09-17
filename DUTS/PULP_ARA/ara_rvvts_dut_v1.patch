@@ -1,0 +1,122 @@
+From b05c4d9555edc2f02ca36e6888672ff48c9d7724 Mon Sep 17 00:00:00 2001
+From: Jonas REICHHARDT <reichhardt.jonas@gmail.com>
+Date: Sun, 7 Jun 2026 10:33:46 +0200
+Subject: [PATCH] Implemented interfaces to use Ara as RVVTS DuT
+
+Tested for versions a6436df6ad and ab4158aeeb (should also work with
+versions in between).
+
+Signed-off-by: Manfred SCHLAEGL <manfred.schlaegl@gmx.at>
+---
+ hardware/src/ara_soc.sv         |  2 +-
+ hardware/tb/ara_tb_verilator.sv | 72 +++++++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 1 deletion(-)
+
+diff --git a/hardware/src/ara_soc.sv b/hardware/src/ara_soc.sv
+index 5ee64e17..3147e1d8 100644
+--- a/hardware/src/ara_soc.sv
++++ b/hardware/src/ara_soc.sv
+@@ -243,7 +243,7 @@ module ara_soc import axi_pkg::*; import ara_pkg::*; #(
+     .NumWords (L2NumWords  ),
+     .NumPorts (1           ),
+     .DataWidth(AxiDataWidth),
+-    .SimInit("random")
++    .SimInit("zeros")
+   ) i_dram (
+     .clk_i  (clk_i                                                                      ),
+     .rst_ni (rst_ni                                                                     ),
+diff --git a/hardware/tb/ara_tb_verilator.sv b/hardware/tb/ara_tb_verilator.sv
+index 81f70ad8..ad9b3c15 100644
+--- a/hardware/tb/ara_tb_verilator.sv
++++ b/hardware/tb/ara_tb_verilator.sv
+@@ -21,6 +21,13 @@ module ara_tb_verilator #(
+ 
+   localparam AxiAddrWidth     = 64;
+   localparam AxiWideDataWidth = 64 * NrLanes / 2;
++  localparam int BreakpointAddress = 64'h80000004;
++  localparam int MemoryDumpSize = 3*1024*1024;
++  localparam int StallThresh = 10000;
++
++  parameter config_pkg::cva6_cfg_t CVA6Cfg = build_config_pkg::build_config(
++      cva6_config_pkg::cva6_cfg
++  );
+ 
+   /*********
+    *  DUT  *
+@@ -40,8 +47,73 @@ module ara_tb_verilator #(
+   /*********
+    *  EOC  *
+    *********/
++  int ex = 0;
++  int lastPC;
++  int commit_pcs [CVA6Cfg.NrCommitPorts];
++  int commit_cnt [CVA6Cfg.NrCommitPorts];
++
++  initial begin
++    $display("[Lanes]: %0d",NrLanes);
++    $display("[VLEN]: %0d",VLEN);
++    $display("[DataWidth]: %0d",AxiWideDataWidth);
++    $display("[BreakAddr]: %0h",BreakpointAddress);
++    $display("[MemDumpBytes]: %0d",MemoryDumpSize);
++    $display("[NRCommitPorts]: %0d",CVA6Cfg.NrCommitPorts);
++    for (int i = 0; i < CVA6Cfg.NrCommitPorts; i++) begin
++      commit_cnt[i] = 0;
++    end
++    $display("[StallThreshold]: %0d",StallThresh);
++  end
+ 
+   always @(posedge clk_i) begin
++    for (int i = 0; i < CVA6Cfg.NrCommitPorts; i++) begin
++      /*$display("[PCn%0d]: %h %0b %0b",i,dut.i_ara_soc.i_system.i_ariane.commit_instr_id_commit[i].pc,
++        dut.i_ara_soc.i_system.i_ariane.commit_ack[i],
++        dut.i_ara_soc.i_system.i_ariane.commit_instr_id_commit[i].ex.valid);*/
++      if (dut.i_ara_soc.i_system.i_ariane.commit_instr_id_commit[i].pc == BreakpointAddress &&
++        dut.i_ara_soc.i_system.i_ariane.commit_ack[i] &&
++        !dut.i_ara_soc.i_system.i_ariane.commit_instr_id_commit[i].ex.valid) begin
++        if(ex == 0) begin
++          // Print integer regs
++          $display("pc %0d",dut.i_ara_soc.i_system.i_ariane.pc_commit);
++          for (int i = 0; i < 32; i=i+1)
++            $display("x%0d %0d", i,
++                  dut.i_ara_soc.i_system.i_ariane.issue_stage_i.i_issue_read_operands.gen_asic_regfile.i_ariane_regfile.mem[i]
++                  );
++        end else if(ex == 1) begin
++          // Create memory dump
++          int file = $fopen("./dump.bin","wb");
++          if (!file) begin
++            $error("Dump file could not be opened");
++            $finish(2);
++          end
++          for(int i = 0;i<(MemoryDumpSize/(AxiWideDataWidth/8));i=i+1) begin
++            $fwrite(file, "%u", dut.i_ara_soc.i_dram.sram[i]);
++          end
++          $fclose(file);
++          $display("%0d Bytes dumped",MemoryDumpSize);
++          $finish(2);
++        end
++        ex = ex+1;
++      end
++      // Detect processor stall (hopefully temporary)
++      if (dut.i_ara_soc.i_system.i_ariane.commit_instr_id_commit[i].pc == commit_pcs[i] && commit_pcs[i] != 0) begin
++        //$display("c%0d:",i,commit_cnt[i]);
++        commit_cnt[i] = commit_cnt[i]+1;
++        if(commit_cnt[i] >= StallThresh) begin
++          $display("STALL @ %0h",dut.i_ara_soc.i_system.i_ariane.commit_instr_id_commit[i].pc);
++          $finish(2);
++        end
++      end else begin
++        commit_cnt[i] = 0;
++      end
++      commit_pcs[i] = dut.i_ara_soc.i_system.i_ariane.commit_instr_id_commit[i].pc;
++    end
++    /*if (dut.i_ara_soc.i_system.i_ariane.pc_commit == BreakpointAddress && lastPC != BreakpointAddress) begin
++      $display("[PC]: %h",dut.i_ara_soc.i_system.i_ariane.pc_commit);
++    end
++    lastPC = dut.i_ara_soc.i_system.i_ariane.pc_commit;*/
++
+     if (exit_o[0]) begin
+       if (exit_o >> 1) begin
+         $warning("Core Test ", $sformatf("*** FAILED *** (tohost = %0d)", (exit_o >> 1)));
+-- 
+2.47.3
+

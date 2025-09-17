@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -49,7 +49,7 @@ class SpikeRunner(ProcessTimeoutRunner):
             [
                 config["spike_bin"],
                 "--isa",
-                "RV" + str(config["xlen"]) + "I" + config["rv_extensions"],
+                "RV" + str(config["xlen"]) + "I" + config["rv_extensions"] + "_zifencei",
                 "--varch="
                 + "vlen:"
                 + str(config["vector_vlen"])
