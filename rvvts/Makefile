@@ -1,4 +1,4 @@
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -12,6 +12,9 @@ FLAKE8_ARGS=\
 .PHONY: all lint check
 
 all: package
+
+package:
+	# nothing to do yet
 
 lint:
 	flake8 . ${FLAKE8_ARGS}
