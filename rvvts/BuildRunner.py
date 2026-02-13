@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -69,8 +69,12 @@ class BuildRunner(ProcessTimeoutRunner):
         self.regset = RegStateDump(config=config, reglist=[i for i in range(32)])
 
         # add asm header and program end code (for breakpoint)
+        handle_exceptions = stop_on_exception or skip_on_exception
         self.breakpoint = xmemstart + 4
+
+        # START CODE
         self.asmhdr = """
+# START CODE
 .globl _start
 _start:         # @xmemstart
     # jump to real start
@@ -82,115 +86,121 @@ _stop:          # flush pipeline check for breakpoint in RTL models
     fence.i
     j _break
 
-
 # dummy HTIF symbols (needed for qemu)
 tohost: .dword 0
 .size tohost, 8
 fromhost: .dword 0
 .size fromhost, 8
+"""
 
+        # END CODE
+        self.asmhdr += f"""
+# END CODE (save state)
 _end:
     # reset tmpregstore (get clean memhash)
     csrrw gp, mscratch, gp
-    li    t0, 0
-    li    t1, 0
-    li    t2, 0
-"""
-        self.asmhdr += self.dumpfile.tmpregstore.gen_save()
+    li x5, 0 # t0
+    li x6, 0 # t1
+    li x7, 0 # t2
+{self.dumpfile.tmpregstore.gen_save()}\
 
-        self.asmhdr += "    # save/update state\n"
-        # x5 and x6 already hold last pc and exc counter
-        self.asmhdr += self.dumpfile.estate.gen_load()
-        self.asmhdr += "    li   x9, 0x6600\n"
-        self.asmhdr += "    csrr x7, mstatus\n"
-        self.asmhdr += "    and  x7, x7, x9\n"
-        self.asmhdr += self.dumpfile.estate.gen_save()
+    # save/update state (x5 and x6 already hold last pc and exc counter)
+    # (NOTE: last pc comes either from _after_last_instr or from stop_on_exception (see exception handler))
+{self.dumpfile.estate.gen_load()}\
+    li x9, 0x6600
+    csrr x7, mstatus
+    and x7, x7, x9
+{self.dumpfile.estate.gen_save()}
+"""
 
         if has_float:
-            # float maybe disabled by test-code -> enable before reading state
-            self.asmhdr += "    # enable and save float state\n"
-            self.asmhdr += "    li   x5, 0x6000\n"
-            self.asmhdr += "    csrs mstatus, x5\n"
-            self.asmhdr += "    csrr x5, fcsr\n"
-            self.asmhdr += self.dumpfile.fstate.gen_save()
-            self.asmhdr += "    # save float registers\n"
-            self.asmhdr += self.dumpfile.fregs.gen_save()
+            self.asmhdr += f"""\
+    # save float state (maybe disabled by test code -> re-enable)
+    li x5, 0x6000
+    csrs mstatus, x5
+    csrr x5, fcsr
+{self.dumpfile.fstate.gen_save()}\
+    # save float registers
+{self.dumpfile.fregs.gen_save()}
+"""
 
         if has_vector:
-            # vector maybe disabled by test-code -> enable before reading state
-            self.asmhdr += "    # enable and save vector state\n"
-            self.asmhdr += "    li   x5, 0x600\n"
-            self.asmhdr += "    csrs mstatus, x5\n"
-            self.asmhdr += "    csrr x5, vtype\n"
-            self.asmhdr += "    csrr x6, vl\n"
-            self.asmhdr += "    csrr x7, vlenb\n"
-            self.asmhdr += "    csrr x8, vstart\n"
-            self.asmhdr += "    csrr x9, vxrm\n"
-            self.asmhdr += "    csrr x10, vxsat\n"
-            self.asmhdr += "    csrr x11, vcsr\n"
-            self.asmhdr += self.dumpfile.vstate.gen_save()
-            self.asmhdr += "    # save vector registers\n"
-            self.asmhdr += self.dumpfile.vregs.gen_save()
+            self.asmhdr += f"""\
+    # save vector state (maybe disabled by test code -> re-enable)
+    li x5, 0x600
+    csrs mstatus, x5
+    csrr x5, vtype
+    csrr x6, vl
+    csrr x7, vlenb
+    csrr x8, vstart
+    csrr x9, vxrm
+    csrr x10, vxsat
+    csrr x11, vcsr
+{self.dumpfile.vstate.gen_save()}\
+    # save vector registers
+{self.dumpfile.vregs.gen_save()}\
+"""
 
         self.asmhdr += """
-
     # restore gp
     csrrw gp, mscratch, gp
 
     # loop
     j _stop      # jump to xmemstart + 8 (pre-breakpoint)
-
-_begin:
 """
-        # set pointer to memory area of dumpfile data (mscratch)
-        self.asmhdr += "    li gp, " + hex(self.dumpfile.get_addr()) + "\n"
-        self.asmhdr += "    csrw mscratch, gp\n"
 
-        # BEGIN: EXCEPTIONS
-        if stop_on_exception or skip_on_exception:
-            self.asmhdr += """
-# Stop/Skip on exception
-    # jump over exception handling code
-    j _exc_end
-    # exc vector
+        # EXCEPTIONS HANDLING CODE
+        if handle_exceptions:
+            self.asmhdr += f"""
+    # EXCEPTION HANDLER (implements stop or skip&count)
 _exc_handler:
+    # save context
+    csrrw gp, mscratch, gp
+{self.dumpfile.tmpregstore.gen_save()}\
+
+    # handle state (load all, modify, store all)
+{self.dumpfile.estate.gen_load()}\
+    # save adress of last instruction (exception)
+    csrr x5, mepc
+    # increment exception counter
+    addi x6, x6, 1
+{self.dumpfile.estate.gen_save()}\
 """
-            self.asmhdr += "    # save context\n"
-            self.asmhdr += "    csrrw gp, mscratch, gp\n"
-            self.asmhdr += self.dumpfile.tmpregstore.gen_save()
-
-            self.asmhdr += "    # handle state (load all, modify, store all)\n"
-            self.asmhdr += self.dumpfile.estate.gen_load()
-            self.asmhdr += "    # save adress of last instruction (exception)\n"
-            self.asmhdr += "    csrr x5, mepc\n"
-            self.asmhdr += "    # increment exception counter\n"
-            self.asmhdr += "    addi x6, x6, 1\n"
-            self.asmhdr += self.dumpfile.estate.gen_save()
-
             if skip_on_exception:
-                self.asmhdr += (
-                    "    # skip on exception: modify mepc to next instruction (ra+4)\n"
-                )
-                self.asmhdr += "    addi x5, x5, 4\n"
-                self.asmhdr += "    csrw mepc, x5\n"
-
-            self.asmhdr += "    # restore context\n"
-            self.asmhdr += self.dumpfile.tmpregstore.gen_load()
-            self.asmhdr += "    csrrw gp, mscratch, gp\n"
-
-            if skip_on_exception:
-                self.asmhdr += """
-    # skip on exception: jump back to next instruction (ra+4)
+                self.asmhdr += f"""
+    # skip on exception: restore context and jump back to next instruction (ra+4)
+    # TODO: handle compressed (ra+2)
+    addi x5, x5, 4
+    csrw mepc, x5
+{self.dumpfile.tmpregstore.gen_load()}\
+    csrrw gp, mscratch, gp
     mret
 """
-            else:
-                self.asmhdr += """
-    # stop on exception: jump to end
+            elif stop_on_exception:
+                self.asmhdr += f"""
+    # stop on exception: restore context and jump to stop
+{self.dumpfile.tmpregstore.gen_load()}\
+    csrrw gp, mscratch, gp
     j _stop
 """
-            self.asmhdr += """
-_exc_end:
-    # set vector to _vector (stop/skip on exc)
+            else:
+                raise Exception(
+                    "exception handling active, but no mode (skip or stop) defined"
+                )
+
+        # BEGIN CODE
+        self.asmhdr += f"""
+    # BEGIN CODE
+_begin:
+    # set pointer to memory area of dumpfile data (mscratch)
+    li gp, {hex(self.dumpfile.get_addr())}
+    csrw mscratch, gp
+"""
+
+        if handle_exceptions:
+            self.asmhdr += f"""
+    # setup exception handling
+    # set vector to _exc_handler (stop/skip on exc)
     la t0, _exc_handler
     csrw mtvec, t0
     # disable interrupt, timer, swint (exceptions only)
@@ -198,63 +208,71 @@ _exc_end:
     li t0, 0x000
     csrw mie, t0
     # init state (exception counter, last exec pc)
+{self.dumpfile.estate.gen_set([0, 0, 0])}\
+{self.dumpfile.estate.gen_save()}
 """
-            self.asmhdr += self.dumpfile.estate.gen_set([0, 0, 0])
-            self.asmhdr += self.dumpfile.estate.gen_save()
-        # END: EXCEPTIONS
 
-        self.asmhdr += "    # set mstatus (disabled ints, features)\n"
-        self.asmhdr += "    li t0, 0\n"
+        mstatus_comment = "    # setup mstatus:\n"
+        mstatus = 0
         if has_float:
-            self.asmhdr += "    # Enable floating point\n"
-            self.asmhdr += "    li t1, 0x6000   // MSTATUS_FS\n"
-            self.asmhdr += "    or t0, t0, t1\n"
+            mstatus_comment += "    # - enable float (mstatus.fs, 0x6000)\n"
+            mstatus |= 0x6000
         if has_vector:
-            self.asmhdr += "    # Enable vector\n"
-            self.asmhdr += "    li t1, 0x600    // MSTATUS_VS\n"
-            self.asmhdr += "    or t0, t0, t1\n"
-        self.asmhdr += "    csrw mstatus, t0\n"
+            mstatus_comment += "    # - enable vector (mstatus.vs, 0x600)\n"
+            mstatus |= 0x600
+        self.asmhdr += f"""\
+{mstatus_comment}\
+    li t0, {hex(mstatus)}
+    csrw mstatus, t0\n
+"""
 
         if has_float:
-            self.asmhdr += "// init fp registers\n"
             if has_float_single:
                 instr = "fcvt.s.w"
             if has_float_double:
                 instr = "fcvt.d.w"
             if has_float_quad:
                 instr = "fcvt.q.w"
+            self.asmhdr += "    # init float registers\n"
             for i in range(0, 32):
                 self.asmhdr += "    " + instr + " f" + str(i) + ", zero\n"
 
         if has_vector:
             self.asmhdr += """
-    # Vector: reset vl to max
-    vsetvli t0, zero, e8, ta, ma
+    # reset vector vl to max
+    vsetvli t0, zero, e8, ta, ma\n
 """
 
         # add register poison
+        self.asmhdr += "    # init integer registers\n"
         for i in range(1, 32):
             self.asmhdr += "    li x" + str(i) + ", " + str(i) + "\n"
-        self.asmhdr += "\n# start of test code\n"
 
-        # add end code
-        self.asmtail = "_after_last_instr:\n"
-        self.asmtail += "# end of test code\n\n"
-        self.asmtail += "    # save context\n"
-        self.asmtail += "    csrrw gp, mscratch, gp\n"
-        self.asmtail += self.dumpfile.tmpregstore.gen_save()
-        self.asmtail += "    # handle state (load all, modify, store all)\n"
-        self.asmtail += self.dumpfile.estate.gen_load()
-        self.asmtail += "    # update address of last instruction in test\n"
-        self.asmtail += "    la   x5, _after_last_instr\n"
-        self.asmtail += "    addi x5, x5, -4\n"
-        self.asmtail += self.dumpfile.estate.gen_save()
-        self.asmtail += "    # restore context\n"
-        self.asmtail += self.dumpfile.tmpregstore.gen_load()
-        self.asmtail += "    csrrw gp, mscratch, gp\n"
-        self.asmtail += "    j _stop\n"
+        self.asmhdr += "\n# -------- START OF TEST CODE --------\n"
 
-        # create command
+        # TAIL CODE (after test code)
+        self.asmtail = f"""\
+# -------- END OF TEST CODE --------
+_after_last_instr:
+
+    # STORE LAST PC
+    # (Note: Might be set by stop_on_exception (see exception handler) -> can't be moved to _stop!)
+    # save context
+    csrrw gp, mscratch, gp
+{self.dumpfile.tmpregstore.gen_save()}\
+    # handle state (load all, modify, store all)
+{self.dumpfile.estate.gen_load()}\
+    # update address of last instruction in test
+    la   x5, _after_last_instr
+    addi x5, x5, -4
+{self.dumpfile.estate.gen_save()}\
+    # restore context
+{self.dumpfile.tmpregstore.gen_load()}\
+    csrrw gp, mscratch, gp
+    j _stop
+"""
+
+        # CREATE COMMAND
         super().set_program(
             [
                 config["gcc_bin"],
