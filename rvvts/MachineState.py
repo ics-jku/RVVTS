@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -785,28 +785,42 @@ class RegStateDump(StateDump):
         return len(self.reglist) * self.xlenb
 
     # save to mem
-    def gen_save(self):
+    def gen_save(self, x3gp_in_mscratch=False):
         code = ""
         for i in range(len(self.reglist)):
             code += self._gen_store(
-                reg="x" + str(self.reglist[i]), offset=self.offset + i * self.xlenb
+                reg=self.reglist[i],
+                offset=self.offset + i * self.xlenb,
+                x3gp_in_mscratch=x3gp_in_mscratch,
             )
         return code
 
     # restore from mem
-    def gen_load(self):
+    def gen_load(self, x3gp_in_mscratch=False):
         code = ""
         for i in range(len(self.reglist)):
             code += self._gen_load(
-                reg="x" + str(self.reglist[i]), offset=self.offset + i * self.xlenb
+                reg=self.reglist[i],
+                offset=self.offset + i * self.xlenb,
+                x3gp_in_mscratch=x3gp_in_mscratch,
             )
         return code
 
     # set to values
-    def gen_set(self, values):
+    def gen_set(self, values, x3gp_in_mscratch=False):
         code = ""
         for i in range(len(self.reglist)):
-            code += "    li x" + str(self.reglist[i]) + ", " + hex(values[i]) + "\n"
+            use_mscratch = False
+            reg = self.reglist[i]
+            if x3gp_in_mscratch and reg == 3:
+                use_mscratch = True
+                code += "    csrrw x1, mscratch, x1  # load gp/x3(mscratch) & save x1\n"
+                reg = 1
+            code += "    li x" + str(reg) + ", " + hex(values[i]) + "\n"
+            if use_mscratch:
+                code += (
+                    "    csrrw x1, mscratch, x1  # store gp/x3(mscratch) & restore x1\n"
+                )
         return code
 
     # extract from dump file
@@ -818,20 +832,36 @@ class RegStateDump(StateDump):
             values.append(int.from_bytes(val, byteorder="little"))
         return values
 
-    def _gen_load_store(self, store=False, reg="x0", offset=0):
-        code = "    "
+    def _gen_load_store(self, store=False, reg=0, offset=0, x3gp_in_mscratch=False):
+        code = ""
+        use_mscratch = False
+
+        if x3gp_in_mscratch and reg == 3:
+            use_mscratch = True
+            code += "    csrrw x1, mscratch, x1  # load gp/x3(mscratch) & save x1\n"
+            reg = 1
+
+        code += "    "
         if store:
             code += self.inst_sreg
         else:
             code += self.inst_lreg
-        code += " " + reg + ", " + str(offset) + "(gp)\n"
+        code += " x" + str(reg) + ", " + str(offset) + "(gp)\n"
+
+        if use_mscratch:
+            code += "    csrrw x1, mscratch, x1  # store gp/x3(mscratch) & restore x1\n"
+
         return code
 
-    def _gen_load(self, reg="x0", offset=0):
-        return self._gen_load_store(reg=reg, offset=offset)
+    def _gen_load(self, reg=0, offset=0, x3gp_in_mscratch=False):
+        return self._gen_load_store(
+            reg=reg, offset=offset, x3gp_in_mscratch=x3gp_in_mscratch
+        )
 
-    def _gen_store(self, reg="x0", offset=0):
-        return self._gen_load_store(store=True, reg=reg, offset=offset)
+    def _gen_store(self, reg=0, offset=0, x3gp_in_mscratch=False):
+        return self._gen_load_store(
+            store=True, reg=reg, offset=offset, x3gp_in_mscratch=x3gp_in_mscratch
+        )
 
 
 class VRegStateDump(StateDump):
