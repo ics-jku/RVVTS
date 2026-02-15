@@ -953,6 +953,12 @@ class DumpFile:
         )
         self.len += self.estate.get_len()
 
+        # save all iregs
+        self.istate = RegStateDump(
+            config=config, addr=addr, offset=self.len, reglist=range(0, 32)
+        )
+        self.len += self.istate.get_len()
+
         # save all fregs
         float_flen = 0
         if "f" in self.rv_extensions:
@@ -1037,6 +1043,7 @@ class DumpFile:
         return sha1.hexdigest()
 
     def extract(self):
+        regs = {}
         ret = {}
         with open(self.filename, "rb") as file:
             # exclude dump area from xmemhash (TODO: cleanup the whole dumpfile_reserve handling)
@@ -1052,6 +1059,10 @@ class DumpFile:
             ret["lastPC"] = val[0]
             ret["#exceptions"] = val[1]
             ret["mstatus.fs/vs"] = val[2]
+
+            val = self.istate.extract(file)
+            for idx, regname in enumerate(RVREGS_IDX_DICT):
+                regs[regname] = val[idx]
 
             if sum(e in self.rv_extensions for e in "fdq"):
                 val = self.fstate.extract(file)
@@ -1082,7 +1093,7 @@ class DumpFile:
         if not self.keep_dumpfile:
             self.delete()
 
-        return ret
+        return (regs, ret)
 
 
 class FDQRegStateDump(StateDump):

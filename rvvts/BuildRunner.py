@@ -79,12 +79,11 @@ class BuildRunner(ProcessTimeoutRunner):
 _start:         # @xmemstart
     # jump to real start
     j _begin
-_break:          # @xmemstart + 4 -> breakpoint
-    # jump to real end
-    j _end
-_stop:          # flush pipeline check for breakpoint in RTL models
+_stop:          # @xmemstart + 4 -> breakpoint
+    # end of execution
+    nop
     fence.i
-    j _break
+    j _stop
 
 # dummy HTIF symbols (needed for qemu)
 tohost: .dword 0
@@ -96,9 +95,13 @@ fromhost: .dword 0
         # END CODE
         self.asmhdr += f"""
 # END CODE (save state)
-_end:
-    # reset tmpregstore (get clean memhash)
+_end_of_exec:
     csrrw gp, mscratch, gp
+
+    # save integer registers
+{self.dumpfile.istate.gen_save(x3gp_in_mscratch = True)}\
+
+    # reset tmpregstore (get clean memhash)
     li x5, 0 # t0
     li x6, 0 # t1
     li x7, 0 # t2
@@ -181,7 +184,7 @@ _exc_handler:
     # stop on exception: restore context and jump to stop
 {self.dumpfile.tmpregstore.gen_load()}\
     csrrw gp, mscratch, gp
-    j _stop
+    j _end_of_exec
 """
             else:
                 raise Exception(
@@ -269,7 +272,7 @@ _after_last_instr:
     # restore context
 {self.dumpfile.tmpregstore.gen_load()}\
     csrrw gp, mscratch, gp
-    j _stop
+    j _end_of_exec
 """
 
         # CREATE COMMAND

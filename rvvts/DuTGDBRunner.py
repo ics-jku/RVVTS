@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
 
 from .MachineState import MachineState, DumpFile
 from .BasicRunner import Runner, ProcessTimeoutRunner, RunnerOutcome, RunnerFile
-
-import re
 
 
 # TODO: TRY STDIN
@@ -35,9 +33,6 @@ class GDBRunner(ProcessTimeoutRunner):
         cmdstr += "target remote localhost:" + str(config["debug_port"]) + "\n"
         cmdstr += "set $pc = " + hex(config["xmemstart"]) + "\n"  # force entry point
         cmdstr += "break *" + hex(config["breakpoint"]) + "\n"
-        cmdstr += "cont\n"
-        cmdstr += "info registers general\n"
-        # ensure dump is complete
         cmdstr += "cont\n"
         cmdstr += (
             "dump binary memory "
@@ -67,17 +62,7 @@ class GDBRunner(ProcessTimeoutRunner):
             return (outcome, None)
 
         try:
-            regs = ret.stdout
-            regs = re.sub("\n", " ", regs)
-            regs = re.split(r"(zero.*)", regs)[1]
-            regs = re.split(r"\s+", regs)
-            regs = {
-                regs[i]: int(regs[i + 1], 16) & self.bitmask
-                for i in range(0, 33 * 3, 3)
-            }
-
-            state = self.dumpfile.extract()
-
+            regs, state = self.dumpfile.extract()
             mstate = MachineState(self.config, (regs, state))
             mstate.save(self.mstate_filename)
             return (outcome, mstate)

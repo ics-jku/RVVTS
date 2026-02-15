@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2025 Jonas REICHHARDT <reichhardt.jonas@gmail.com>, Institute for Complex Systems, JKU Linz
+# (C) 2025-26 Jonas REICHHARDT <reichhardt.jonas@gmail.com>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
 
-from .MachineState import MachineState, DumpFile, RVREGS_IDX_DICT
+from .MachineState import MachineState, DumpFile
 from .BasicRunner import ProcessTimeoutRunner, RunnerOutcome
 
 
@@ -63,13 +63,7 @@ class AraRunner(ProcessTimeoutRunner):
                 )
             regs["pc"] = int(tmp[pc_idx].split(" ")[1])
 
-            for i in range(0, 32, 1):
-                reg_name = list(RVREGS_IDX_DICT.keys())[
-                    list(RVREGS_IDX_DICT.values()).index(i)
-                ]
-                regs[reg_name] = int(tmp[pc_idx + 1 + i].split(" ")[1])
-
-            state = self.dumpfile.extract()
+            regs, state = self.dumpfile.extract()
 
         except Exception as e:
             return (RunnerOutcome.ERROR, e)

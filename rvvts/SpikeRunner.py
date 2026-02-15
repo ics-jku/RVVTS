@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
 
 from .MachineState import MachineState, DumpFile
 from .BasicRunner import ProcessTimeoutRunner, RunnerOutcome, RunnerFile
-
-import re
 
 
 class SpikeRunner(ProcessTimeoutRunner):
@@ -28,11 +26,6 @@ class SpikeRunner(ProcessTimeoutRunner):
 
         # create command file
         cmdstr = ""
-        cmdstr += "until pc 0 " + hex(config["breakpoint"]) + "\n"
-        cmdstr += "pc 0\n"
-        cmdstr += "reg 0\n"
-        # ensure dump is complete
-        cmdstr += "rs 1\n"
         cmdstr += "until pc 0 " + hex(config["breakpoint"]) + "\n"
         cmdstr += "dump\n"
         cmdstr += "quit\n"
@@ -78,34 +71,12 @@ class SpikeRunner(ProcessTimeoutRunner):
             return (outcome, None)
 
         try:
-            regs = {}
-            tmp = ret.stderr
-            tmp = re.sub("\n", " ", tmp)
-            tmp = re.split(r"(zero:.*)", tmp)
-            tmp0 = tmp[0]
-            tmp0 = re.split(r"\s+", tmp0)
-            tmp0 = tmp0[-2]
-            tmp1 = tmp[1]
-            tmp1 = re.sub(":", "", tmp1)
-            tmp1 = re.sub("s0", "fp", tmp1)  # quirk to match gdb
-            tmp1 = re.split(r"\s+", tmp1)
-            regs = {tmp1[i]: int(tmp1[i + 1], 16) for i in range(0, 2 * 32, 2)}
-            # vregs = {}
-            # if 'v' in self.rv_extensions:
-            #    s = 2*32 + 4
-            #    e = s + 5 * 32
-            #    vregs = {tmp1[i]: [tmp1[i + 2], tmp1[i + 2 + 2]] for i in range(s, e, 5)}
-            #    #print(vregs)
-            regs["pc"] = int(tmp0, 16)
-
-            state = self.dumpfile.extract()
-
+            regs, state = self.dumpfile.extract()
+            mstate = MachineState(self.config, (regs, state))
+            mstate.save(self.mstate_filename)
+            return (outcome, mstate)
         except Exception as e:
             return (RunnerOutcome.ERROR, e)
-
-        mstate = MachineState(self.config, (regs, state))
-        mstate.save(self.mstate_filename)
-        return (outcome, mstate)
 
     def run_handler(self, binary="", **kwargs):
         return super().run_handler(parameters=[binary], **kwargs)
