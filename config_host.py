@@ -15,6 +15,9 @@ config = dict(
     # Mandatory for state extraction from RISC-V VP++, QEMU, ...
     gdb_bin = "/opt/riscv-gnu-toolchain-multi-2024.09.03/bin/riscv32-unknown-elf-gdb",
 
+    # sail-riscv binary
+    sail_riscv_bin = "/srv/ext/TOOLS/sail-riscv-rvvtsdut_20260216/build/c_emulator/sail_riscv_sim",
+
     # Spike simulator binary
     # Mandatory for reference simulation
     #spike_bin = "/opt/spike/spike",

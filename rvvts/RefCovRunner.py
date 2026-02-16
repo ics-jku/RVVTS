@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
 
 from .BasicRunner import Runner, RunnerOutcome
 from .RISCVOVPSIMRunner import RISCVOVPSIMRunner
-from .SpikeRunner import SpikeRunner
+from .SailRunner import SailRunner
 
 import os
 import re
@@ -136,7 +136,7 @@ class RefCovRunner(Runner):
         subconfig = config.copy()
         subconfig["dir"] = self.get_dir()
 
-        self.RefCovRunner_ref = SpikeRunner(subconfig)
+        self.RefCovRunner_ref = SailRunner(subconfig)
         if config["RefCovRunner_coverage"]:
             self.RefCovRunner_cov = config["RefCovRunner_coverage"](config=subconfig)
         else:
