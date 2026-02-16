@@ -57,7 +57,7 @@ class BuildRunner(ProcessTimeoutRunner):
             + hex(xmemlen - config["dumpfile_reserve"])
             + "}\n"
             + "SECTIONS {.text :  { *(.text) } > MEM }\n"
-            + "ENTRY(_start)\n",
+            + "ENTRY(_00_start)\n",
         )
 
         # dumpfile (temp regs, exception counter, last pc, ...)
@@ -72,18 +72,18 @@ class BuildRunner(ProcessTimeoutRunner):
         handle_exceptions = stop_on_exception or skip_on_exception
         self.breakpoint = xmemstart + 4
 
-        # START CODE
-        self.asmhdr = """
-# START CODE
+        # HEADER, START AND END CODE
+        self.asmhdr = """\
+# HEADER, START AND END (breakpoint loop) CODE
 .globl _start
-_start:         # @xmemstart
+_00_start:                  # @xmemstart
     # jump to real start
-    j _begin
-_stop:          # @xmemstart + 4 -> breakpoint
-    # end of execution
+    j _01_testcode_init_exec
+_06_breakpoint_end_loop:    # @xmemstart + 4 -> breakpoint
     nop
+_05_end:
     fence.i
-    j _stop
+    j _06_breakpoint_end_loop
 
 # dummy HTIF symbols (needed for qemu)
 tohost: .dword 0
@@ -92,10 +92,29 @@ fromhost: .dword 0
 .size fromhost, 8
 """
 
-        # END CODE
+        # FINALIZATION CODE
         self.asmhdr += f"""
-# END CODE (save state)
-_end_of_exec:
+# FINALIZATION CODE (save state)
+# fini after completed testcode
+_04a_finalize_testcode_complete:
+    # STORE LAST PC
+    # save context
+    csrrw gp, mscratch, gp
+{self.dumpfile.tmpregstore.gen_save()}\
+    # handle state (load all, modify, store all)
+{self.dumpfile.estate.gen_load()}\
+    # update address of last instruction in test
+    la   x5, _03_testcode_end
+    # TODO: handle compressed (x5-2)
+    addi x5, x5, -4
+{self.dumpfile.estate.gen_save()}\
+    # restore context
+{self.dumpfile.tmpregstore.gen_load()}\
+    csrrw gp, mscratch, gp
+    # fallthrough
+
+# fini after stop on exception (and fallthrough from above)
+_04b_finalize_testcode_stop_on_exception:
     csrrw gp, mscratch, gp
 
     # save integer registers
@@ -108,7 +127,7 @@ _end_of_exec:
 {self.dumpfile.tmpregstore.gen_save()}\
 
     # save/update state (x5 and x6 already hold last pc and exc counter)
-    # (NOTE: last pc comes either from _after_last_instr or from stop_on_exception (see exception handler))
+    # (NOTE: last pc comes either from _04a_finalize_testcode_complete or from stop_on_exception in exception handler
 {self.dumpfile.estate.gen_load()}\
     li x9, 0x6600
     csrr x7, mstatus
@@ -149,14 +168,14 @@ _end_of_exec:
     csrrw gp, mscratch, gp
 
     # loop
-    j _stop      # jump to xmemstart + 8 (pre-breakpoint)
+    j _05_end
 """
 
         # EXCEPTIONS HANDLING CODE
         if handle_exceptions:
             self.asmhdr += f"""
-    # EXCEPTION HANDLER (implements stop or skip&count)
-_exc_handler:
+    # EXCEPTION HANDLER (implements count, and skip or stop)
+_exception_handler:
     # save context
     csrrw gp, mscratch, gp
 {self.dumpfile.tmpregstore.gen_save()}\
@@ -184,17 +203,17 @@ _exc_handler:
     # stop on exception: restore context and jump to stop
 {self.dumpfile.tmpregstore.gen_load()}\
     csrrw gp, mscratch, gp
-    j _end_of_exec
+    j _04b_finalize_testcode_stop_on_exception
 """
             else:
                 raise Exception(
                     "exception handling active, but no mode (skip or stop) defined"
                 )
 
-        # BEGIN CODE
+        # INITIALIZATION CODE
         self.asmhdr += f"""
-    # BEGIN CODE
-_begin:
+    # INITIALIZATION CODE
+_01_testcode_init_exec:
     # set pointer to memory area of dumpfile data (mscratch)
     li gp, {hex(self.dumpfile.get_addr())}
     csrw mscratch, gp
@@ -203,8 +222,8 @@ _begin:
         if handle_exceptions:
             self.asmhdr += f"""
     # setup exception handling
-    # set vector to _exc_handler (stop/skip on exc)
-    la t0, _exc_handler
+    # set vector to _exception_handler (count, and stop or skip on exception)
+    la t0, _exception_handler
     csrw mtvec, t0
     # disable interrupt, timer, swint (exceptions only)
     # mie.MEIE=0, mie.MTIE=0, mie.MSIE=0
@@ -251,28 +270,16 @@ _begin:
         for i in range(1, 32):
             self.asmhdr += "    li x" + str(i) + ", " + str(i) + "\n"
 
-        self.asmhdr += "\n# -------- START OF TEST CODE --------\n"
+        self.asmhdr += """\
+_02_testcode_begin:
+# -------- BEGIN OF TESTCODE --------
+"""
 
         # TAIL CODE (after test code)
-        self.asmtail = f"""\
-# -------- END OF TEST CODE --------
-_after_last_instr:
-
-    # STORE LAST PC
-    # (Note: Might be set by stop_on_exception (see exception handler) -> can't be moved to _stop!)
-    # save context
-    csrrw gp, mscratch, gp
-{self.dumpfile.tmpregstore.gen_save()}\
-    # handle state (load all, modify, store all)
-{self.dumpfile.estate.gen_load()}\
-    # update address of last instruction in test
-    la   x5, _after_last_instr
-    addi x5, x5, -4
-{self.dumpfile.estate.gen_save()}\
-    # restore context
-{self.dumpfile.tmpregstore.gen_load()}\
-    csrrw gp, mscratch, gp
-    j _end_of_exec
+        self.asmtail = """\
+# -------- END OF TESTCODE --------
+_03_testcode_end:
+    j _04a_finalize_testcode_complete
 """
 
         # CREATE COMMAND
