@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -508,7 +508,14 @@ class RVProgramGenerator(ProgramGenerator):
         self.rrig = RVRandRegImmGenerator()
 
         # use full memory (memstart, memlen) for loads
-        self.blsg_load = RVBoundedLoadStoreGenerator(config=config)
+        config_partmem = config.copy()
+        config_partmem["memstart"] = (
+            config_partmem["memstart"] + config_partmem["quirk_sail_load_offset"]
+        )
+        config_partmem["memlen"] = (
+            config_partmem["memlen"] - config_partmem["quirk_sail_load_offset"]
+        )
+        self.blsg_load = RVBoundedLoadStoreGenerator(config=config_partmem)
 
         # use only dmemory (dmemstart, dmemlen) for stores (protect program)
         config_partmem = config.copy()
@@ -1133,7 +1140,14 @@ class RVVProgramGenerator(ProgramGenerator):
         self.frrig = RVFRandRegImmGenerator()
 
         # use full memory (memstart, memlen) for loads
-        self.vblsg_load = RVVBoundedLoadStoreGenerator(config=config)
+        config_partmem = config.copy()
+        config_partmem["memstart"] = (
+            config_partmem["memstart"] + config_partmem["quirk_sail_load_offset"]
+        )
+        config_partmem["memlen"] = (
+            config_partmem["memlen"] - config_partmem["quirk_sail_load_offset"]
+        )
+        self.vblsg_load = RVVBoundedLoadStoreGenerator(config=config_partmem)
 
         # use only dmemory (dmemstart, dmemlen) for stores (protect program)
         config_partmem = config.copy()

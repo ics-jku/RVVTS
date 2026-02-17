@@ -1,6 +1,6 @@
 # coding: utf-8
 
-# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 
@@ -40,6 +40,13 @@ config = dict(
     # With this we enable a quirk in ISG which prevents generation of
     # code that sets vcsr to other values than 0
     quirk_ara_csrs = False,
+
+    # <32 bit loads between [0x10:0x17] fail on sail-riscv with exception
+    # Seems also to affect stores, but rvvts does not generate stores do not write in xmem (would overwrite program)
+    # TODO: adresses match the tohost and fromhost symbols (see objdump)
+    # TODO: most cases could not be state minimized -> but manually possible -> WHY?!
+    # QUIRK: set this value to 0x20 if sail is used as reference or dut
+    quirk_sail_load_offset = 0x20,
 
     archive_on_timeout = True,
     archive_on_ignore = True,
