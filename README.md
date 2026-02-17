@@ -150,6 +150,34 @@ The distributed binaries are locked via a date check and the repo was not update
 
 
 
+### SAIL-RISC-V (Optional)
+
+[SAIL-RISC-V](https://github.com/riscv/sail-riscv) is an open-source executable formal model of the RISC-V ISA. RVVTS can use its C emulator as a reference model or as one of the DuTs currently supported by RVVTS.
+
+ 1. Clone SAIL-RISC-V and enter the directory
+    ```
+    git clone https://github.com/riscv/sail-riscv.git
+    cd sail-riscv
+    ```
+ 2. Select the tested SAIL-RISC-V version
+    Tested with a33475aeb80090127433b5a8b30e717edaa19e71 (tag 2026-02-16-a33475a / 0.10)
+    ```
+    git checkout a33475aeb80090127433b5a8b30e717edaa19e71
+    ```
+ 3. Apply the RVVTS DUT Patch located in ```DUTS/SAIL-RISC-V/sailrv_rvvts_dut_v1.patch```
+    (v1 compatible with a33475aeb80090127433b5a8b30e717edaa19e71)
+    ```
+    git am <rvvts>/DUTS/SAIL-RISC-V/sailrv_rvvts_dut_v1.patch
+    ```
+ 4. Build the C emulator
+    ```
+    ./build_simulator.sh
+    ```
+    You should now have the executable file ```sail_riscv_sim``` in directory ```build/c_emulator```.
+ 5. Update ```sail_riscv_bin``` in ```config_host.py```. Use the absolute path to ```build/c_emulator/sail_riscv_sim```
+
+
+
 ### RISC-V VP++ (Optional)
 
 [RISC-V VP++](https://github.com/ics-jku/riscv-vp-plusplus) is a open-source, SystemC based RISC-V Virtual Prototype with support for RISC-V Vector, and is one of the DuTs currently supported by RVVTS.

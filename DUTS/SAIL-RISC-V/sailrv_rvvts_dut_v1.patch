@@ -1,0 +1,209 @@
+From 454ccfe1feabb76f314481b99f940fae87271fec Mon Sep 17 00:00:00 2001
+From: Katharina RUEP <katharina.ruep@jku.at>
+Date: Mon, 16 Feb 2026 15:02:52 +0100
+Subject: [PATCH] Implemented interfaces to use the sail-riscv c_emulator as
+ RVVTS DuT (for sail-rv 2026-02-16-a33475a, tag: 0.10)
+
+Add support for memory dump and stop on breakpoint for
+https://github.com/riscv/sail-riscv.git
+commit a33475aeb80090127433b5a8b30e717edaa19e71 (tag: 2026-02-16-a33475a, tag: 0.10)
+---
+ c_emulator/CMakeLists.txt         |  2 +
+ c_emulator/riscv_callbacks_bp.cpp | 92 +++++++++++++++++++++++++++++++
+ c_emulator/riscv_callbacks_bp.h   | 23 ++++++++
+ c_emulator/riscv_sim.cpp          | 16 ++++++
+ 4 files changed, 133 insertions(+)
+ create mode 100644 c_emulator/riscv_callbacks_bp.cpp
+ create mode 100644 c_emulator/riscv_callbacks_bp.h
+
+diff --git a/c_emulator/CMakeLists.txt b/c_emulator/CMakeLists.txt
+index abc73cf..56f832a 100644
+--- a/c_emulator/CMakeLists.txt
++++ b/c_emulator/CMakeLists.txt
+@@ -75,6 +75,8 @@ add_executable(sail_riscv_sim
+     riscv_callbacks_log.h
+     riscv_callbacks_rvfi.cpp
+     riscv_callbacks_rvfi.h
++    riscv_callbacks_bp.cpp
++    riscv_callbacks_bp.h
+ )
+ 
+ # The generated C model is not warnings-clean, silence them.
+diff --git a/c_emulator/riscv_callbacks_bp.cpp b/c_emulator/riscv_callbacks_bp.cpp
+new file mode 100644
+index 0000000..c195a4d
+--- /dev/null
++++ b/c_emulator/riscv_callbacks_bp.cpp
+@@ -0,0 +1,92 @@
++#include <string>
++#include <iomanip>
++#include <cstring>
++
++#include "riscv_callbacks_bp.h"
++#include "sail_riscv_model.h"
++
++struct block {
++    uint64_t block_id;
++    unsigned char *mem;
++    struct block *next;
++};
++
++extern struct block *sail_memory;
++extern uint64_t MASK;
++
++bp_callbacks::bp_callbacks(uint64_t breakpoint, uint64_t memstart, uint64_t memlen)
++  : breakpoint(breakpoint),
++    memstart(memstart),
++    memlen(memlen){}
++
++
++// Implementations of default callbacks for breakpoints.
++// The model assumes that these functions do not change the state of the model.
++
++void bp_callbacks::pc_write_callback(hart::Model &model, sbits new_pc) {
++  if (new_pc.bits == breakpoint) {
++    dump_mem_to_file();
++
++    model.model_fini();
++
++	exit(EXIT_SUCCESS);
++  }
++}
++
++void bp_callbacks::dump_mem_to_file() {
++
++  std::stringstream stream;
++  stream << "./mem.0x" <<  std::hex << memstart << ".bin";
++  std::string filename(stream.str());
++
++  FILE *fp = fopen(filename.c_str(), "wb");
++    if (!fp) {
++      fprintf(stderr, "Error: Could not open file %s for writing\n", filename.c_str());
++        return;
++    }
++    //printf("Dumping memory from 0x%lx to 0x%lx (%lu bytes) to %s\n",
++    //       memstart, memstart + memlen, memlen, filename.c_str());
++
++    uint64_t block_size = MASK + 1;
++    uint64_t current_addr = memstart;
++    uint64_t end_addr = memstart + memlen;
++
++    while (current_addr < end_addr) {
++        uint64_t mask = current_addr & ~MASK;
++        uint64_t block_offset = current_addr & MASK;
++        uint64_t bytes_remaining_in_block = block_size - block_offset;
++        uint64_t bytes_to_write = (current_addr + bytes_remaining_in_block <= end_addr) ?
++                                   bytes_remaining_in_block : (end_addr - current_addr);
++
++        // Find the block containing this address
++        struct block *blk = sail_memory;
++        bool found = false;
++
++        while (blk != NULL) {
++            if (blk->block_id == mask) {
++                // Found the block - write the data from this block
++                fwrite(&blk->mem[block_offset], 1, bytes_to_write, fp);
++                found = true;
++                break;
++            }
++            blk = blk->next;
++        }
++
++        if (!found) {
++            // Block not allocated - write zeros
++            static uint8_t zeros[65536];  // 64KB zero buffer
++            memset(zeros, 0, sizeof(zeros));
++            uint64_t remaining = bytes_to_write;
++            while (remaining > 0) {
++                uint64_t chunk = (remaining > sizeof(zeros)) ? sizeof(zeros) : remaining;
++                fwrite(zeros, 1, chunk, fp);
++                remaining -= chunk;
++            }
++        }
++
++        current_addr += bytes_to_write;
++    }
++
++    fclose(fp);
++    //printf("Memory dump complete: %s\n", filename.c_str());
++}
+diff --git a/c_emulator/riscv_callbacks_bp.h b/c_emulator/riscv_callbacks_bp.h
+new file mode 100644
+index 0000000..d0acdb5
+--- /dev/null
++++ b/c_emulator/riscv_callbacks_bp.h
+@@ -0,0 +1,23 @@
++#pragma once
++#include "sail.h"
++#include "riscv_callbacks_if.h"
++
++class bp_callbacks : public callbacks_if {
++
++public:
++  bp_callbacks(uint64_t breakpoint, uint64_t memstart, uint64_t memlen);
++
++  // callbacks_if
++  //void post_step_callback([[maybe_unused]] bool is_waiting) override;
++  void pc_write_callback(hart::Model &model, sbits new_pc) override;
++
++private:
++
++  void dump_mem_to_file();
++
++  uint64_t breakpoint;
++  bool first_done;
++
++  uint64_t memstart;
++  uint64_t memlen;
++};
+diff --git a/c_emulator/riscv_sim.cpp b/c_emulator/riscv_sim.cpp
+index 609b576..3ebf2b7 100644
+--- a/c_emulator/riscv_sim.cpp
++++ b/c_emulator/riscv_sim.cpp
+@@ -36,6 +36,7 @@
+ #include "riscv_model_impl.h"
+ #include "rvfi_dii.h"
+ #include "sail_riscv_version.h"
++#include "riscv_callbacks_bp.h"
+ 
+ using std::chrono::duration_cast;
+ using std::chrono::milliseconds;
+@@ -60,6 +61,9 @@ uint64_t total_insns = 0;
+ #ifdef SAILCOV
+ char *sailcov_file = nullptr;
+ #endif
++uint64_t breakpoint = 0;
++uint64_t memstart = 0;
++uint64_t memlen = 0;
+ 
+ } // namespace
+ 
+@@ -266,6 +270,13 @@ static CLIOptions parse_cli(int argc, char **argv) {
+     "file. This is optional with some arguments, e.g. --print-isa-string."
+   );
+ 
++  app.add_option("--breakpoint", breakpoint, "Breakpoint address")
++    ->option_text("<address>");
++  app.add_option("--memstart", memstart, "Memory start address")
++    ->option_text("<address>");
++  app.add_option("--memlen", memlen, "Memory length")
++    ->option_text("<size>");
++
+   std::size_t column_width = 45;
+   app.get_formatter()->long_option_alignment_ratio(6.f / column_width);
+   app.get_formatter()->column_width(column_width);
+@@ -712,6 +723,11 @@ int inner_main(int argc, char **argv) {
+ 
+   init_start = steady_clock::now();
+ 
++  bp_callbacks bp_cbs(breakpoint, memstart, memlen);
++  if (breakpoint != 0) {
++    model.register_callback(&bp_cbs);
++  }
++
+   if (rvfi) {
+     if (!rvfi->setup_socket(opts.config_print_rvfi)) {
+       return 1;
+-- 
+2.47.3
+
