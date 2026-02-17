@@ -8,7 +8,7 @@
 
 from .BasicRunner import Runner, RunnerOutcome
 from .RISCVOVPSIMRunner import RISCVOVPSIMRunner
-from .SailRunner import SailRunner
+from .SpikeRunner import SpikeRunner
 
 import os
 import re
@@ -136,7 +136,12 @@ class RefCovRunner(Runner):
         subconfig = config.copy()
         subconfig["dir"] = self.get_dir()
 
-        self.RefCovRunner_ref = SailRunner(subconfig)
+        RefCovRunner_ref_class = config.get("RefCovRunner_ref", None)
+        if RefCovRunner_ref_class is None:
+            # default is spike
+            RefCovRunner_ref_class = SpikeRunner
+        self.RefCovRunner_ref = RefCovRunner_ref_class(config=subconfig)
+
         if config["RefCovRunner_coverage"]:
             self.RefCovRunner_cov = config["RefCovRunner_coverage"](config=subconfig)
         else:

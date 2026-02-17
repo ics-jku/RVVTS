@@ -53,6 +53,9 @@ config = dict(
     archive_on_error = True,
     archive_on_complete = False,
 
+    # Default Reference Runner -> NOTE: has to be set!
+    RefCovRunner_ref = None,
+
     RefCovRunner_coverage = None,
     RISCVOVPSIMCover_extensions = "V",
 
