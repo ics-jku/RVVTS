@@ -112,6 +112,21 @@ class SailRunner(ProcessTimeoutRunner):
         outcome, ret = super().task_post(result)
 
         if outcome != RunnerOutcome.COMPLETE:
+            # The sail model may exit with an errorcode on a failed assertation. In this
+            # case we get a "Assertation failed" message on stderr.
+            # Handling such cases as mstate difference (fail) makes it possible
+            # 1. to differenciate failed Assertations from other model execution aborts, and
+            # 2. to minimize such cases with CodeErrMinRunner.
+            if "Assertion failed" in ret.stderr:
+                mstate = MachineState(self.config)
+                mstate.state[1]["lastPC"] = -1
+                return (RunnerOutcome.COMPLETE, mstate)
+            else:
+                print(
+                    "SailRunner: WARNING: UNKNOWN ABORT! -> CHECK RUNNER IMPLEMENTATION"
+                )
+                print(ret.stdout)
+                print(ret.stderr)
             return (outcome, None)
 
         try:
