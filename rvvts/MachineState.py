@@ -564,6 +564,18 @@ class MachineState:
         if "vmask" in mset:
             mset.add("v0")
 
+        # add raw register names (e.g. if "ra" in mset, also add "x1")
+        iregs = set()
+        for reg in mset:
+            if reg in RVREGS_IDX_DICT.keys():
+                iregs.add(f"x{RVREGS_IDX_DICT[reg]}")
+        # add register names (e.g. if "x1" in mset, also add "ra")
+        for rreg_idx, reg_name in enumerate(RVREGS_IDX_DICT):
+            rreg_str = f"x{rreg_idx}"
+            if rreg_str in mset:
+                iregs.add(reg_name)
+        mset = mset.union(iregs)
+
         return mset
 
     def ismatch(mset, elem):
@@ -729,12 +741,16 @@ _vector_data_end:
                 )
             )
 
-        f.add(CodeFragment("    // restore registers"))
+        # restore integer registers
+        regs_restore = False
         for regname, regval in self.state[0].items():
             if regname == "pc" or regname == "zero":
                 continue
             if not MachineState.ismatch(mset, regname):
                 continue
+            if not regs_restore:
+                f.add(CodeFragment("    // restore registers"))
+                regs_restore = True
             f.add(
                 CodeFragment(
                     (
@@ -744,6 +760,9 @@ _vector_data_end:
                     + regname
                 )
             )
+        # add leading newline
+        if regs_restore:
+            f.add(CodeFragment(""))
 
         return f
 
