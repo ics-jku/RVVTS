@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -67,6 +67,12 @@ class CompareRunner(Runner):
                 or res_dut[0] == RunnerOutcome.TIMEOUT
             ):
                 return (RunnerOutcome.TIMEOUT, res_output)
+            # ignore more important than error
+            if (
+                res_refcov[0] == RunnerOutcome.IGNORE
+                or res_dut[0] == RunnerOutcome.IGNORE
+            ):
+                return (RunnerOutcome.IGNORE, res_output)
             return (RunnerOutcome.ERROR, res_output)
 
         try:

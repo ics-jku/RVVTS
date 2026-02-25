@@ -136,6 +136,10 @@ class RefCovRunner(Runner):
         subconfig = config.copy()
         subconfig["dir"] = self.get_dir()
 
+        self.ignore_invalid_sequences = config.get(
+            "RefCovRunner_ignore_invalid_sequences", False
+        )
+
         RefCovRunner_ref_class = config.get("RefCovRunner_ref", None)
         if RefCovRunner_ref_class is None:
             # default is spike
@@ -150,17 +154,35 @@ class RefCovRunner(Runner):
         self.timeout = 1.0
 
     def task(self):
+
+        # TODO: Since we added support for the ignore_invalid_sequences flag,
+        # we have to run the reference and coverage runners sequentically instead
+        # of parallel to not contaminate our coverage sum. This has negative impact
+        # on performance on multi-core machines.
+        # In the long run we will rework the RISCVOVPSIMCoverageRunner to split coverage
+        # and coverage sum. With this we will be able to parallelize coverage and reference
+        # runs again.
+
+        # run reference
         self.RefCovRunner_ref.run(
             binary=self.binary, blocking=False, timeout=self.timeout
         )
+        self.RefCovRunner_ref.wait()
+        res_ref = self.RefCovRunner_ref.get_result()
+
+        # check acceptance of test-case
+        if self.ignore_invalid_sequences and res_ref[0] == RunnerOutcome.COMPLETE:
+            if res_ref[1].state[1]["#exceptions"] > 0:
+                # detected exception -> ignore case (do not run/add coverage)
+                return (RunnerOutcome.IGNORE, {"ref:": res_ref[1], "cov:": None})
+
+        # run coverage runner
         if self.RefCovRunner_cov:
             self.RefCovRunner_cov.run(
                 binary=self.binary, blocking=False, timeout=self.timeout
             )
-        self.RefCovRunner_ref.wait()
         if self.RefCovRunner_cov:
             self.RefCovRunner_cov.wait()
-        res_ref = self.RefCovRunner_ref.get_result()
         if self.RefCovRunner_cov:
             res_cov = self.RefCovRunner_cov.get_result()
         else:
