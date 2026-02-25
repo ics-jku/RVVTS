@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -203,6 +203,9 @@ def runner_bench(
             ignores += 1
             if stop_on_ignore:
                 break
+        elif ret[0] == RunnerOutcome.INVALID:
+            # always stop on invalid
+            break
         elif ret[0] != RunnerOutcome.COMPLETE:
             errors += 1
             if stop_on_error:

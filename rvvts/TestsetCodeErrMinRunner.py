@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -51,7 +51,7 @@ class TestsetCodeErrMinRunner(Runner):
             self.testset_idx += 1
 
             if self.testset_idx > self.testset_last_idx:
-                return (RunnerOutcome.IGNORE, None)
+                return (RunnerOutcome.INVALID, None)
             self.testname = self.testset[self.testset_idx]
 
             # load codeblock
