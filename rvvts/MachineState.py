@@ -600,6 +600,15 @@ class MachineState:
 
         f = CodeFragmentList()
 
+        # Add placeholder for enabling extensions in mstatus necessary for
+        # coming up state restore. The placeholder pre_state_restore_codefragment
+        # is filled with actual code below.
+        state_restore_uses_float = False
+        state_restore_uses_vector = False
+        pre_state_restore_codefragment = CodeFragment()
+        f.add(pre_state_restore_codefragment)
+
+        # handle float restore
         if self.has_float:
 
             if "f" in self.rv_extensions:
@@ -633,6 +642,7 @@ _float_data_end:
                 code += "    " + inst_fload + "  " + regname + ", 0(t0)\n"
             if fp_regs:
                 f.add(CodeFragment(code))
+                state_restore_uses_float = True
 
             if MachineState.ismatch(mset, "fcsr"):
                 f.add(
@@ -646,7 +656,9 @@ _float_data_end:
                         )
                     )
                 )
+                state_restore_uses_float = True
 
+        # handle vector restore
         if self.has_vector:
             v_regs = False
             code = """\
@@ -673,6 +685,7 @@ _vector_data_end:
                 code += "    vl1r.v " + regname + ", (t0)\n"
             if v_regs:
                 f.add(CodeFragment(code))
+                state_restore_uses_vector = True
 
             if MachineState.ismatch(mset, "vl") or MachineState.ismatch(mset, "vtype"):
                 f.add(
@@ -690,6 +703,7 @@ _vector_data_end:
                         )
                     )
                 )
+                state_restore_uses_vector = True
 
             if MachineState.ismatch(mset, "vstart"):
                 f.add(
@@ -703,6 +717,7 @@ _vector_data_end:
                         )
                     )
                 )
+                state_restore_uses_vector = True
 
             if (
                 MachineState.ismatch(mset, "vcsr")
@@ -723,13 +738,31 @@ _vector_data_end:
                         )
                     )
                 )
+                state_restore_uses_vector = True
 
+        # Fill placeholder pre_state_restore_codefragment from above with
+        # code for enabling extensions in mstatus necessary for state restore
+        mstatus_expected = 0
+        mstatus_expected_str = ""
+        if state_restore_uses_float:
+            mstatus_expected |= 0x6000
+            mstatus_expected_str += "float, "
+        if state_restore_uses_vector:
+            mstatus_expected |= 0x600
+            mstatus_expected_str += "vector, "
+        if mstatus_expected != 0:
+            pre_state_restore_codefragment.set_code(f"""\
+    // enable extensions for restore ({mstatus_expected_str[:-2]})
+    li t0, 0x6600
+    csrc mstatus, t0
+    li t0, {hex(mstatus_expected)}
+    csrs mstatus, t0\n""")
+
+        # restore the actual mstatus for the test
         if MachineState.ismatch(mset, "mstatus.fs/vs"):
-            f.add(CodeFragment("    // STATE"))
             f.add(
                 CodeFragment(
                     """\
-
     // restore mstatus.fs/vs = {dval}
     li t0, 0x6600
     csrc mstatus, t0

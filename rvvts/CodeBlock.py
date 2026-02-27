@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -66,6 +66,12 @@ class CodeFragment(CodeElement):
         super().__init__()
         self.code = code
         self.ann = ann
+
+    def set_code(self, code):
+        self.code = code
+
+    def get_code(self):
+        return self.code
 
     def set_ann(self, ann):
         self.ann = ann
