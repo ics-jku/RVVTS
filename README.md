@@ -29,16 +29,7 @@ More information on RVVTS can be found in the publications linked in the [last s
 ├── TestsetCodeErrMinRunnerTests.ipynb                       ... Jupyter notebook demonstrating execution of pre-generated
                                                                  test sets
 ├── LICENSE                                                  ... BSD 3-clause "New" or "Revised" License
-├── rvvts                                                    ... The core rvvts Python framework
-└── TestSets                                                 ... Pre-generated test sets (by CovGuidedTestsetGenerator)
-    ├── TestSet_ValidSeq_RV32_3MiB_RVV_VLEN_512_100          ... test set with 100 test cases for positive testing (without traps)
-                                                                 of RV32+RVV with 3MiB memory and 512bit vector length
-    └── TestSet_ValidSeq_RV64_3MiB_RVV_VLEN_512_100          ... test set with 100 test cases for positive testing (without traps)
-                                                                 of RV64+RVV with 3MiB memory and 512bit vector length
-    ├── TestSet_InvalidValidSeq_RV32_3MiB_RVV_VLEN_512_100   ... test set with 100 test cases for negative/positive testing (with traps)
-                                                                 of RV32+RVV with 3MiB memory and 512bit vector length
-    └── TestSet_InvalidValidSeq_RV64_3MiB_RVV_VLEN_512_100   ... test set with 100 test cases for negative/positive testing (with traps)
-                                                                 of RV64+RVV with 3MiB memory and 512bit vector length
+└── rvvts                                                    ... The core rvvts Python framework
 ```
 
 
@@ -239,7 +230,7 @@ You can now investigate the other Jupyter notebooks as presented in section [Pro
 
 The initial paper on RVVTS was presented at ICCAD'24 and can be downloaded here: https://ics.jku.at/files/2024ICCAD_Single-Instruction-Isolation-for-RISC-V-Vector-Test-Failures.pdf
 
-The pre-generated test sets can from the paper can be found in the *TestSets* folder.
+The state of RVVTS from the initial paper (RVVTS version 1), including the pre-generated test sets, is available under the tag [RVVTSv1_ICCAD_2024](https://github.com/ics-jku/RVVTS/tree/RVVTSv1_ICCAD_2024)
 
 If you like RVVTS or found it useful, you can cite our paper as follows:
 
@@ -247,8 +238,7 @@ If you like RVVTS or found it useful, you can cite our paper as follows:
 @inproceedings{SG:2024b,
   author =        {Manfred Schl{\"{a}}gl and Daniel Gro{\ss}e},
   booktitle =     {International Conference on Computer-Aided Design},
-  title =         {Single Instruction Isolation for {RISC-V} Vector Test
-                   Failures},
+  title =         {Single Instruction Isolation for {RISC-V} Vector Test Failures},
   year =          {2024},
 }
 ```
