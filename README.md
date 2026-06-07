@@ -1,4 +1,4 @@
-# RVVTS - The RISC-V Vector Test Framework
+# RVVTS - The RISC-V Vector Test Framework (Version 2)
 
 The **RVVTS Framework** is a modular, open-source framework designed for comprehensive testing of **RISC-V Vector (RVV)** implementations.
 It addresses the complexity of RVV's 600+ configurable instructions by supporting both positive and negative testing scenarios.
