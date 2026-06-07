@@ -63,7 +63,7 @@ config = dict(
     RefCovRunner_coverage = None,
     RISCVOVPSIMCover_extensions = "V",
 
-    rv_extensions = "fdv",
+    rv_extensions = "mfdv",
     vector_elen = 64,
 
     memstart = memstart,
