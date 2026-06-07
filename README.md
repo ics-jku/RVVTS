@@ -111,11 +111,9 @@ The [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain) i
     git clone https://github.com/riscv-collab/riscv-gnu-toolchain.git
     cd riscv-gnu-toolchain
     ```
- 2. Select a specific toolchain version \
-    Development of RVVTS was mostly done on git tag: 2024.09.03
-    Most recent tested version is git tag: 2024.09.03
+ 2. Select a specific toolchain version (e.g., 2026.06.06)
     ```
-    git checkout 2024.09.03
+    git checkout 2026.06.06
     ```
  3. Build (in local directory)
     ```

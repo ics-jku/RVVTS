@@ -9,11 +9,11 @@
 config = dict(
     # GCC binary
     # Mandatory for RISC-V builds
-    gcc_bin = "/opt/riscv-gnu-toolchain-multi-2024.09.03/bin/riscv32-unknown-elf-gcc",
+    gcc_bin = "/opt/riscv-gnu-toolchain-multi-2026.06.06/bin/riscv64-unknown-elf-gcc",
 
     # GNU Debugger binary
     # Mandatory for state extraction for RISC-V VP++ and QEMU
-    gdb_bin = "/opt/riscv-gnu-toolchain-multi-2024.09.03/bin/riscv32-unknown-elf-gdb",
+    gdb_bin = "/opt/riscv-gnu-toolchain-multi-2026.06.06/bin/riscv64-unknown-elf-gdb",
 
     # RISCVOVPSim binary
     # Optional (Coverage measurement)
