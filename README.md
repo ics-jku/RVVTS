@@ -277,7 +277,7 @@ You can now investigate the other Jupyter notebooks as presented in section [Pro
 
 ## Publications
 
-The initial paper on RVVTS was presented at ICCAD'24 and can be downloaded here: https://ics.jku.at/files/2024ICCAD_Single-Instruction-Isolation-for-RISC-V-Vector-Test-Failures.pdf
+The initial paper on RVVTS was presented at ICCAD'24 and can be downloaded here: [.pdf](https://ics.jku.at/files/2024ICCAD_Single-Instruction-Isolation-for-RISC-V-Vector-Test-Failures.pdf)
 
 The state of RVVTS from the initial paper (RVVTS version 1), including the pre-generated test sets, is available under the tag [RVVTSv1_ICCAD_2024](https://github.com/ics-jku/RVVTS/tree/RVVTSv1_ICCAD_2024)
 
@@ -292,5 +292,53 @@ If you like RVVTS or found it useful, you can cite our paper as follows:
 }
 ```
 
-A related publication discusses the realisation of bounded vector load/stores by extending context-free grammars with functions to generate elements in a context-sensitive way.
-This publication is available here: https://ics.jku.at/files/2024RISCVSummit_BoundedLoadStoreGrammarTestRVV.pdf
+## Other publications
+
+* **GLSVLSI 2026**
+
+  Manfred Schlägl, Jonas Reichhardt, and Daniel Große. From generation to failure categorization: An open-source automated RTL verification framework for RVV. In ACM Great Lakes Symposium on VLSI (GLSVLSI), 2026.
+
+  Extends RVVTS with RTL support and an Automated Failure Categorization stage. Applied to the RTL implementation of Ara, the framework achieves more than 96% functional coverage, minimizes about 97% of the detected deviations, and groups failures into 16 categories.
+
+  [[bib](https://ics.jku.at/bibliography/manfred_schlaegl/#SRG:2026b) | [DOI](https://doi.org/10.1145/3787109.3815255) | [material](https://github.com/ics-jku/RVVTS_RTL_AFC_Ara) | [.pdf](https://ics.jku.at/files/2026GLSVLSI_From_Generation_to_Failure_Categorization_An_Open-Source_automated_RTL_Verification_Framework_for_RVV.pdf)]
+
+* **RISC-V Summit Europe 2026**
+
+  Manfred Schlägl, Katharina Ruep, and Daniel Große. Sail-RISC-V and Spike for RISC-V vector: Toward consistent golden reference behavior. In RISC-V Summit Europe, 2026.
+
+  Uses RVVTS to compare the RVV behavior of Sail-RISC-V and Spike. Positive tests show only 0.23% deviations, whereas negative tests reveal 3.73%, highlighting issues in Sail-RISC-V instruction-validity checks under dynamic configurations.
+
+  [[bib](https://ics.jku.at/bibliography/manfred_schlaegl/#SRG:2026) | [material](https://github.com/ics-jku/RVVTS_SailRV_Spike) | [.pdf](https://ics.jku.at/files/2026RISC-V_Summit_Europe_RVVTS_SailRV_Spike.pdf)]
+
+* **DATE 2026**
+
+  Katharina Ruep, Manfred Schlägl, and Daniel Große. Late breaking results: Float fight – verifying floating-point behavior in RISC-V simulators. In Design, Automation and Test in Europe Conference (DATE), pages 1–3, 2026.
+
+  Introduces FP-RVVTS, an RVVTS extension for floating-point verification. It adds support for the RISC-V F, D, and Zfh extensions, improves failure isolation, achieves more than 95% functional coverage, and exposes bugs in several simulators and floating-point libraries.
+
+  [[bib](https://ics.jku.at/bibliography/manfred_schlaegl/#RSG:2026) | [DOI](https://doi.org/10.23919/DATE69613.2026.11539613) | [base RVVTS material](https://github.com/ics-jku/RVVTS) | [.pdf](https://ics.jku.at/files/2026DATE_LBR_Float_Fight-Verifying_Floating-Point_Behavior_in_RISC-V_Simulators.pdf)]
+
+* **MBMV 2025**
+
+  Manfred Schlägl and Daniel Große. RVVTS: A modular, open-source framework for positive and negative testing of the RISC-V “V” vector extension (RVV). In ITG/GI/GMM-Workshop “Methoden und Beschreibungssprachen zur Modellierung und Verifikation von Schaltungen und Systemen” (MBMV), 2025.
+
+  Summarizes the RVVTS framework: grammar-based and coverage-guided test generation, positive and negative testing, automated execution, and Single Instruction Isolation with Code Minimization. The case studies confirm bugs in RISC-V VP++ and QEMU.
+
+  [[bib](https://ics.jku.at/bibliography/manfred_schlaegl/#SG:2025b) | [material](https://github.com/ics-jku/RVVTS) | [.pdf](https://ics.jku.at/files/2025MBMV_RVVTS.pdf)]
+
+* **ICCAD 2024**
+
+  Manfred Schlägl and Daniel Große. Single instruction isolation for RISC-V vector test failures. In IEEE/ACM International Conference on Computer-Aided Design (ICCAD), pages 156:1–156:9, 2024.
+
+  Introduces RVVTS as a modular open-source framework for positive and negative RVV testing. Its Single Instruction Isolation with Code Minimization technique reduces large sets of detected deviations to compact debugging cases while achieving more than 94% functional coverage.
+
+  [[bib](https://ics.jku.at/bibliography/manfred_schlaegl/#SG:2024b) | [DOI](https://doi.org/10.1145/3676536.3676755) | [material](https://github.com/ics-jku/RVVTS) | [.pdf](https://ics.jku.at/files/2024ICCAD_Single-Instruction-Isolation-for-RISC-V-Vector-Test-Failures.pdf)]
+
+* **RISC-V Summit Europe 2024**
+
+  Manfred Schlägl and Daniel Große. Bounded load/stores in grammar-based code generation for testing the RISC-V vector extension. In RISC-V Summit Europe, 2024.
+
+  Presents a precursor to RVVTS: a grammar-based fuzzing approach for RVV testing. The paper focuses on generating valid vector load/store sequences by extending a context-free grammar with functions that add context-sensitive behavior.
+
+  [[bib](https://ics.jku.at/bibliography/manfred_schlaegl/#SG:2024) | [material](https://github.com/ics-jku/RVVTS) | [.pdf](https://ics.jku.at/files/2024RISCVSummit_BoundedLoadStoreGrammarTestRVV.pdf)]
+
