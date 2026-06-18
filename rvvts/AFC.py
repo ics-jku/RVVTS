@@ -55,6 +55,7 @@ class AFC_Ara(AFC):
 
         # override
         self.AFC_Categorizer = "Ara"
+        # see comments below
         self.AVAIL_CATEGORIES = [
             "UNKNOWN",
             "ARA_HANG",
@@ -177,19 +178,30 @@ class AFC_Ara(AFC):
             )
 
         # classify
+        # Fallback for deviations that do not match any AFC rule.
         category = "UNKNOWN"
 
         if res_end_dut_mstate.state[1]["lastPC"] == -1:
+            # Ara did not complete the test case and the DUT machine state
+            # records an invalid last committed PC. This captures deadlocks or
+            # execution stalls rather than a normal architectural mismatch.
             category = "ARA_HANG"
 
         elif len(r[IPC]) or len(r[ILASTPC]):
+            # The program counter or last committed PC differs, but no Ara hang
+            # was classified. This captures control-flow or commit-PC
+            # mismatches.
             category = "PCERR"
 
         elif len(r[IVCSR]) == n_all0:
+            # Only vector CSR state such as `vxrm`, `vxsat`, or `vcsr` differs.
+            # No other architectural state mismatch is present.
             category = "VCSR_ONLY"
 
         elif len(r[IVCSR]):
-            # vcsr, vxrm, vxsat and others
+            # A vector CSR mismatch is present together with other architectural
+            # deviations. This separates mixed failures from pure `VCSR_ONLY`
+            # cases.
             category = "VCSR"
 
         elif len(r[IEXC]):
@@ -204,8 +216,14 @@ class AFC_Ara(AFC):
             cref = int(tmp[1].split("(")[0], 16)
             cdut = int(tmp[2].split("(")[0], 16)
             if cref > cdut:
+                # The reference reports more traps than the DUT. The DUT
+                # accepted an instruction or configuration that the reference
+                # considers invalid.
                 category = "EXC_INVALID_ACCEPT"
             elif cref < cdut:
+                # The DUT reports more traps than the reference. The DUT
+                # rejected an instruction or configuration that the reference
+                # considers valid.
                 category = "EXC_INVALID_REJECT"
             else:
                 print("AFC_Ara: ERROR: exceptions match")
@@ -215,6 +233,8 @@ class AFC_Ara(AFC):
                 )
 
         elif len(r[IVLENB]):
+            # The `vlenb` CSR differs. The DUT and reference therefore disagree
+            # on the vector-register byte length reported to software.
             category = "VLENB"
 
         # TODO MSTATUS.FS/VS contains only FS and VS -> MSTATUS_STRANGE_VAL can never happen!!!
@@ -238,15 +258,28 @@ class AFC_Ara(AFC):
                 )
 
             if cref & 0xFFFF_FFFF_FFFF_99FF or cdut & 0xFFFF_FFFF_FFFF_99FF:
+                # mstatus.fs/vs contains unexpected bits outside the extension
+                # state fields tracked by this categorizer.
                 category = "MSTATUS_STRANGE_VAL"
             else:
                 cbref = cref.bit_count()
                 cbdut = cdut.bit_count()
                 if cbref > cbdut:
+                    # The `mstatus.fs/vs` extension-state bits differ, with
+                    # more bits set on the reference than on the DUT. This
+                    # suggests that the DUT failed to enable or dirty expected
+                    # extension state.
                     category = "MSTATUS_EXT_REF"
                 elif cbref < cbdut:
+                    # The `mstatus.fs/vs` extension-state bits differ, with
+                    # more bits set on the DUT than on the reference. This
+                    # suggests that the DUT invalidly enables or dirties
+                    # floating-point or vector extension state.
                     category = "MSTATUS_EXT_DUT"
                 else:
+                    # The `mstatus.fs/vs` bits differ, but neither side simply
+                    # has more enabled or dirty extension-state bits. This
+                    # captures other `mstatus.fs/vs` pattern mismatches.
                     category = "MSTATUS_DIFF"
 
         elif len(r[IVTYPE]):
@@ -279,22 +312,37 @@ class AFC_Ara(AFC):
 
             if cref_vill and (not cdut_vill):
                 if vtype_valid_zero:
-                    # vill is differnt, but the value is ok, so it must be a VILL set error
+                    # The reference sets the `vill` bit in `vtype`, but the DUT
+                    # does not. The DUT therefore fails to mark an illegal
+                    # vector configuration as illegal.
                     category = "VTYPE_VILL_SET_ERROR"
                 else:
-                    # vill is different but some value is not 0, so it must be invalid accept
+                    # `vtype` differs because the reference marks a non-zero
+                    # illegal encoding with `vill`, while the DUT does not.
+                    # This is an invalid vector-type acceptance symptom.
                     category = "VTYPE_INVALID_ACCEPT"
             elif (not cref_vill) and cdut_vill:
                 if vtype_valid_zero:
-                    # vill is differnt, but the value is ok, so it must be a VILL clear error
+                    # The DUT sets `vtype.vill` while the reference clears it
+                    # for an otherwise zero vector type. The DUT marks a legal
+                    # vector configuration as illegal.
                     category = "VTYPE_VILL_CLEAR_ERROR"
                 else:
-                    # vill is different but some value is not 0, so it must be invalid reject
+                    # `vtype` differs because the DUT marks a non-zero
+                    # vector-type encoding as illegal while the reference
+                    # accepts it. This is the counterpart of invalid vector-type
+                    # acceptance.
                     category = "VTYPE_INVALID_REJECT"
             else:
+                # `vtype` differs in a way not covered by the specific `vill`
+                # set, clear, accept, or reject categories. This captures
+                # remaining vector-type CSR mismatches.
                 category = "VTYPE_DIFF"
 
         elif len(r[IVL]) == n_all0:
+            # Only the `vl` CSR differs. The DUT and reference agree on all
+            # other state but compute or retain a different active vector
+            # length.
             category = "VL_ONLY"
 
         elif len(r[IVSTART]):
@@ -302,8 +350,14 @@ class AFC_Ara(AFC):
             tmp = re.split(r"  *", r[IEXC_OK][0])
             cref = int(tmp[1].split("(")[0], 16)
             if cref > 0:
+                # `vstart` differs while matching non-zero exception counts show
+                # that a trap occurred. This points to vector restart-state
+                # handling around exceptions.
                 category = "VSTART_WEXC"
             else:
+                # `vstart` differs while the matching exception count is zero.
+                # This points to an unexpected `vstart` update or reset during
+                # normal, non-trapping execution.
                 category = "VSTART_WOEXC"
 
         elif len(r[IFCSR]) == n_all0:
@@ -318,37 +372,66 @@ class AFC_Ara(AFC):
             #            frm_ref = cref & 0xe0
             #            frm_dut = cdut & 0xe0
             if fflags_ref != fflags_dut and rest_ref == rest_dut:
+                # Only `fcsr` differs and the mismatch is confined to the
+                # floating-point exception flags `fflags`. Other `fcsr` fields
+                # and architectural state match.
                 category = "FCSR_FFLAGS_ONLY"
             else:
+                # Only `fcsr` differs, but the mismatch is not limited to
+                # `fflags`. This includes rounding-mode or other floating-point
+                # CSR differences.
                 category = "FCSR_ONLY"
 
         elif len(r[IXMEM]) == n_all0:
+            # Only the dedicated instruction-memory hash differs. The visible
+            # symptom is a memory-side effect outside the dedicated data-memory
+            # region.
             category = "XMEM_ONLY"
         elif len(r[IDMEM]) == n_all0:
+            # Only the dedicated data-memory hash differs. The failure
+            # manifests as an unexpected data-memory update, typically from
+            # store-side behavior.
             category = "DMEM_ONLY"
 
         elif len(r[IIREG]) == n_all0:
+            # Only integer register contents differ. This can indicate a wrong
+            # scalar result or an unintended write to an integer register.
             category = "IREG_ONLY"
 
         elif len(r[IFREG]) == n_all0:
+            # Only floating-point register contents differ. This captures
+            # failures whose visible symptom is limited to floating-point
+            # register values.
             category = "FREG_ONLY"
         elif (
             len(r[IFREG])
             and len(r[IFCSR])
             and ((len(r[IFREG]) + len(r[IFCSR])) == n_all0)
         ):
+            # Only floating-point registers and `fcsr` differ. This combines
+            # floating-point value deviations with floating-point status side
+            # effects.
             category = "FREG_FCSR_ONLY"
 
         elif len(r[IVREG]) == n_all0:
+            # Only vector register contents differ between reference and DUT.
+            # This usually points to wrong vector instruction results or vector
+            # register handling.
             category = "VREG_ONLY"
         elif (
             len(r[IVREG])
             and len(r[IFCSR])
             and ((len(r[IVREG]) + len(r[IFCSR])) == n_all0)
         ):
+            # Only vector registers and `fcsr` differ. This combines a vector
+            # result mismatch with floating-point status side effects, with no
+            # other state deviations.
             category = "VREG_FCSR_ONLY"
 
         elif (len(r[IIREG]) + len(r[IFREG]) + len(r[IVREG])) == n_all0:
+            # All deviations are confined to architectural value registers
+            # across integer, floating-point, and vector registers. CSRs,
+            # memory, and PC-related state match.
             category = "VALREG_ONLY"
 
         # default: nocat, no attributes
