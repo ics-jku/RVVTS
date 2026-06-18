@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-25 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -228,7 +228,7 @@ class CodeErrMinRunner(Runner):
 
         # TRY TO REDUCE
 
-        (good_idx, bad_idx, reduced_code, ret_reduced) = delta_code_reduction(
+        good_idx, bad_idx, reduced_code, ret_reduced = delta_code_reduction(
             runner=self.codecomparerunner_red,
             code=code_block,
             log=False,
@@ -246,7 +246,7 @@ class CodeErrMinRunner(Runner):
 
         # TRY TO MINIMIZE
 
-        (success, success_min_state, ret_minimize, min_beg_mstate, minimized_code) = (
+        success, success_min_state, ret_minimize, min_beg_mstate, minimized_code = (
             code_minimize(
                 codecheckrunner=self.codecheckrunner,
                 codecomparerunner=self.codecomparerunner_min,
@@ -323,7 +323,7 @@ class CodeErrMinRunner(Runner):
             return ret
         self.errors += 1
 
-        (code_status, res_code_block, ret2) = self.redmin_code(self.res_code_block)
+        code_status, res_code_block, ret2 = self.redmin_code(self.res_code_block)
         if code_status == self.CODE_STATUS_EXECUTED:
             # nothing to do
             pass

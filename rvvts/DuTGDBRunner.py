@@ -56,7 +56,7 @@ class GDBRunner(ProcessTimeoutRunner):
         self.dumpfile.delete()
 
     def task_post(self, result):
-        (outcome, ret) = super().task_post(result)
+        outcome, ret = super().task_post(result)
 
         if outcome != RunnerOutcome.COMPLETE:
             return (outcome, None)

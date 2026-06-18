@@ -81,7 +81,7 @@ class RISCVOVPSIMCoverageRunner(Runner):
                 tmp = re.split(":", line)
                 if len(tmp) != 3:
                     continue
-                (name, points, percent) = tmp
+                name, points, percent = tmp
                 coverage = {}
                 coverage["percent"] = float(re.split("%", percent)[0])
                 tmp = re.split("/", points)

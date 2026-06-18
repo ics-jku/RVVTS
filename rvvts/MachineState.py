@@ -526,7 +526,7 @@ class MachineState:
         for sname in state_ref.keys():
             val_ref = state_ref[sname]
             val_dut = state_dut[sname]
-            (entry_is_equal, res) = state_entry_compare(
+            entry_is_equal, res = state_entry_compare(
                 sname, val_ref, val_dut, diff_full
             )
             if not entry_is_equal:
@@ -538,7 +538,7 @@ class MachineState:
             for dsname in dstatekeys:
                 dval_ref = self.dstate[sname][dsname]
                 dval_dut = other.dstate[sname][dsname]
-                (entry_is_equal, res) = state_entry_compare(
+                entry_is_equal, res = state_entry_compare(
                     " " + sname + "." + dsname, dval_ref, dval_dut, diff_full
                 )
                 if diff_full or not entry_is_equal:

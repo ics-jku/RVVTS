@@ -20,7 +20,6 @@ import re
 import numpy as np
 import copy
 
-
 START_SYMBOL = "<start>"
 RE_NONTERMINAL = re.compile(r"(<[^<> ]*>)")
 
@@ -106,7 +105,7 @@ def grammarISG(
 
                     # recursively evaluate value of expression once
                     if val is None:
-                        (val, sann) = grammarISG(grammar, start_symbol=exp)
+                        val, sann = grammarISG(grammar, start_symbol=exp)
                         exp = val
                         # add subexp annotations to global annotations
                         gann_add(sann)
@@ -532,7 +531,7 @@ class RVProgramGenerator(ProgramGenerator):
         return ret
 
     def gen_fragment(self, **kwargs):
-        (code, ann) = grammarISG(self.grammar, **kwargs)
+        code, ann = grammarISG(self.grammar, **kwargs)
         return CodeFragment(code, ann)
 
     def gen_deinit_fragments(self, **kwargs):
@@ -1158,7 +1157,7 @@ class RVVProgramGenerator(ProgramGenerator):
         self.__def_grammar()
 
     def gen_fragment(self, **kwargs):
-        (code, ann) = grammarISG(self.grammar, **kwargs)
+        code, ann = grammarISG(self.grammar, **kwargs)
         return CodeFragment(code, ann)
 
     def gen_set_mstatus_en_vector(self):
