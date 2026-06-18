@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -43,29 +43,29 @@ class ArchiveRunner(Runner):
             self.timeouts += 1
             if self.archive_on_timeout:
                 archivedir = (
-                    self.get_dir() + "/TIMEOUT_iteration_" + f"{self.iteration :010d}"
+                    self.get_dir() + "/TIMEOUT-iteration_" + f"{self.iteration :010d}"
                 )
         elif ret[0] == RunnerOutcome.IGNORE:
             self.ignores += 1
             if self.archive_on_ignore:
                 archivedir = (
-                    self.get_dir() + "/IGNORE_iteration_" + f"{self.iteration :010d}"
+                    self.get_dir() + "/IGNORE-iteration_" + f"{self.iteration :010d}"
                 )
         elif ret[0] == RunnerOutcome.ERROR:
             self.errors += 1
             if self.archive_on_error:
                 archivedir = (
                     self.get_dir()
-                    + "/ERROR_"
+                    + "/ERROR-"
                     + self.ArchiveRunner_dut.get_error_cause()
-                    + "_iteration_"
+                    + "-iteration_"
                     + f"{self.iteration :010d}"
                 )
         elif ret[0] == RunnerOutcome.COMPLETE:
             self.completes += 1
             if self.archive_on_complete:
                 archivedir = (
-                    self.get_dir() + "/COMPLETE_iteration_" + f"{self.iteration :010d}"
+                    self.get_dir() + "/COMPLETE-iteration_" + f"{self.iteration :010d}"
                 )
 
         if archivedir is not None:
