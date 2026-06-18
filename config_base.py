@@ -56,6 +56,9 @@ config = dict(
     # Default Reference Runner -> NOTE: has to be set!
     RefCovRunner_ref = None,
 
+    # Default AFC categorizer (None .. use default)
+    AFC_Categorizer = None,
+
     # Ignore sequences (test-cases) that cause an exception in the reference (i.e. invalid sequences)
     # Enabling this allows pure positive testing.
     RefCovRunner_ignore_invalid_sequences = False,

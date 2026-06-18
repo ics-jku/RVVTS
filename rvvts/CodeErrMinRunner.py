@@ -12,6 +12,7 @@ from .CodeBlock import CodeBlock, CodeFragment
 from .BasicRunner import Runner, RunnerOutcome, RunnerFile
 from .CodeCheckRunner import CodeCheckRunner
 from .CodeCompareRunner import CodeCompareRunner
+from .AFC import AFC
 
 
 def delta_code_reduction(runner, code, log=False, **kwargs):
@@ -160,6 +161,7 @@ class CodeErrMinRunner(Runner):
         self.reductions = 0
         self.minimizations_state = 0
         self.minimizations = 0
+        self.AFC_category_errors = {}
         self.instr_errors = {}
 
         if config["log"]:
@@ -180,6 +182,12 @@ class CodeErrMinRunner(Runner):
 
         # runner for register values
         self.codecheckrunner = CodeCheckRunner(config=subconfig_check)
+
+        # Automated failure categorization (AFC)
+        AFC_Categorizer_class = config.get("AFC_Categorizer", None)
+        if AFC_Categorizer_class is None:
+            AFC_Categorizer_class = AFC
+        self.AFC_Categorizer = AFC_Categorizer_class(config)
 
         self.reset_run()
 
@@ -286,7 +294,7 @@ class CodeErrMinRunner(Runner):
         )
         bad_ins = bad_ins.strip().split("\n")[-1]  # last line
         bad_ins = bad_ins.strip().split()[0]  # instr
-        self.error_cause = bad_ins
+        self.error_cause_instr = bad_ins
         self.instr_errors[bad_ins] = self.instr_errors.get(bad_ins, 0) + 1
 
         return (code_status, res_code_block, ret_minimize)
@@ -298,7 +306,9 @@ class CodeErrMinRunner(Runner):
             blocking=True, code=self.orig_code_block.as_code(), **self.runkwargs
         )
 
-        self.error_cause = "unknown"
+        self.error_cause_category = "NOT_SET"  # must never appear
+        self.error_cause_attributes = None  # currently unused
+        self.error_cause_instr = "unknown"
         self.res_code_block = self.orig_code_block
         self.res_end_ref_mstate = self.codecomparerunner.compare_runner.ref_mstate
         self.res_end_dut_mstate = self.codecomparerunner.compare_runner.dut_mstate
@@ -345,7 +355,7 @@ class CodeErrMinRunner(Runner):
         return ret
 
     def get_error_cause(self):
-        return self.error_cause
+        return self.error_cause_category + "-" + self.error_cause_instr
 
     def task_post(self, ret):
 
@@ -381,6 +391,19 @@ class CodeErrMinRunner(Runner):
             )
             self.res_end_ref_mstate = self.codecomparerunner.compare_runner.ref_mstate
             self.res_end_dut_mstate = self.codecomparerunner.compare_runner.dut_mstate
+
+            # Automated Failure Categorization (AFC)
+            self.error_cause_category, self.error_cause_attributes = (
+                self.AFC_Categorizer.run(
+                    dir=self.get_dir(),
+                    res_code_block=self.res_code_block,
+                    res_end_ref_mstate=self.res_end_ref_mstate,
+                    res_end_dut_mstate=self.res_end_dut_mstate,
+                )
+            )
+            self.AFC_category_errors[self.error_cause_category] = (
+                self.AFC_category_errors.get(self.error_cause_category, 0) + 1
+            )
 
         # helper for saving mstate and code_blocks if not None
         def save_data(data, filename):

@@ -29,6 +29,7 @@ from .SailRunner import *
 from .ISG import *
 from .CovGuidedFuzzerGenRunner import *
 
+from .AFC import *
 from .CodeErrMinRunner import *
 from .FuzzCodeErrMinRunner import *
 from .TestsetCodeErrMinRunner import *
