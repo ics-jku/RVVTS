@@ -6,7 +6,7 @@ The framework introduces the **Single Instruction Isolation with Code Minimizati
 
 **RVVTS** automates the entire verification process, from test generation and execution to coverage measurement and failure analysis.
 By isolating failing instructions and minimizing the associated code, it streamlines debugging and helps detect bugs more efficiently.
-The framwork uncovered bugs in RVV implementations of [PULP Ara](https://github.com/pulp-platform/ara/) ([reports](https://github.com/ics-jku/RVVTS_RTL_AFC_Ara)), [Sail-RISC-V](https://github.com/riscv/sail-riscv) ([reports](https://github.com/ics-jku/RVVTS_SailRV_Spike)), [RISC-V VP++](https://github.com/ics-jku/riscv-vp-plusplus), [QEMU](https://www.qemu.org/)
+The framwork uncovered bugs in RVV implementations of [PULP Ara](https://github.com/pulp-platform/ara/) ([reports](https://github.com/ics-jku/RVVTS_RTL_AFC_Ara)), [Sail-RISC-V](https://github.com/riscv/sail-riscv) ([reports](https://github.com/ics-jku/RVVTS_SailRV_Spike)), [RISC-V VP++](https://github.com/ics-jku/riscv-vp-plusplus) and [QEMU](https://www.qemu.org/)
 
 The framework is implemented in Python and is highly flexible.
 It is suitable for both automated and interactive debugging workflows through its integration with Jupyter notebooks.
