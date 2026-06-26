@@ -434,5 +434,4 @@ class AFC_Ara(AFC):
             # memory, and PC-related state match.
             category = "VALREG_ONLY"
 
-        # default: nocat, no attributes
         return category, []
