@@ -435,3 +435,58 @@ class AFC_Ara(AFC):
             category = "VALREG_ONLY"
 
         return category, []
+
+
+# AFC Categorizer for Sail-RISC-V
+# re-uses the categories presented in
+# "
+# Manfred Schlägl, Katharina Ruep, and Daniel Große.
+# Sail-RISC-V and Spike for RISC-V vector: Toward
+# consistent golden reference behavior.
+# In RISC-V Summit Europe, 2026.
+# "
+# namely:
+# 1. Invalid Accept (Missing trap)
+# 2. Assertion: Valid Reject (Sail-RISC-V terminated)
+# 3. Assertion: Invalid Reject (Sail-RISC-V terminated)
+# 4. Deviation in Results (e.g. registers, CSRs, . . . )
+# However, for 4. and 1. it falls back to the more granular AFC_Ara
+class AFC_Sail(AFC):
+    def __init__(self, config=None):
+        super().__init__(config)
+
+        self.afc_ara = AFC_Ara(config)
+
+        # override
+        self.AFC_Categorizer = "Sail"
+        # see comments below
+        self.AVAIL_CATEGORIES = [
+            "SAIL_RISCV_ASSERT_VALID_REJECT",
+            "SAIL_RISCV_ASSERT_INVALID_REJECT",
+        ] + self.afc_ara.AVAIL_CATEGORIES
+        self.AVAIL_ATTRIBUTES = [] + self.afc_ara.AVAIL_ATTRIBUTES
+
+    # override
+    def _categorize(self, dir, res_code_block, res_end_ref_mstate, res_end_dut_mstate):
+
+        # Check sail-riscv categories
+        if res_end_dut_mstate.state[1]["lastPC"] == -1:
+            # Sail-RISCV Assertation
+            if res_end_ref_mstate.state[1]["#exceptions"] == 0:
+                # No exception on reference
+
+                # The reference accepts an instruction (-> valid instruction),
+                # while Sail-RISC-V terminates on an assertion.
+                return "SAIL_RISCV_ASSERT_INVALID_REJECT", []
+            else:
+                # Exception on reference
+
+                # The reference rejects an instruction (-> invalid instruction),
+                # while Sail-RISC-V terminates on an assertion instead of reporting
+                # a proper trap.
+                return "SAIL_RISCV_ASSERT_VALID_REJECT", []
+
+        # Fall back to afc_ara for all other cases
+        return self.afc_ara._categorize(
+            dir, res_code_block, res_end_ref_mstate, res_end_dut_mstate
+        )
