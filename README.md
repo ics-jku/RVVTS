@@ -155,17 +155,20 @@ More detailed build instructions can be found in the documentation of the Spike 
     git clone https://github.com/riscv/sail-riscv.git
     cd sail-riscv
     ```
- 2. Select the tested SAIL-RISC-V version
-    Tested with a33475aeb80090127433b5a8b30e717edaa19e71 (tag 2026-02-16-a33475a / 0.10)
+ 2. Select a SAIL-RISC-V version (see matching patches below in point 3)
     ```
-    git checkout a33475aeb80090127433b5a8b30e717edaa19e71
+    git checkout ...
     ```
- 3. Apply the RVVTS DUT Patch located in ```DUTS/SAIL-RISC-V/sailrv_rvvts_dut_v1.patch```
-    (v1 compatible with a33475aeb80090127433b5a8b30e717edaa19e71)
-    ```
-    git am <rvvts>/DUTS/SAIL-RISC-V/sailrv_rvvts_dut_v1.patch
-    ```
- 4. Build the C emulator
+ 3. Apply the RVVTS DUT Patch located in ```DUTS/SAIL-RISC-V```
+    * Select patch based on Sail-RISC-V Version
+      * Sail-riscv a33475aeb8 (tag: 0.10) -> ```DUTS/SAIL-RISC-V/sailrv_rvvts_dut_v1.patch```
+      * Sail-riscv 65ddde80ee (tag: 0.12) -> ```DUTS/SAIL-RISC-V/sailrv_rvvts_dut_v2.patch```
+      * Sail-riscv a526939ca2 -> ```DUTS/SAIL-RISC-V/sailrv_rvvts_dut_v3.patch```
+    * Apply the patch
+      ```
+      git am <rvvts>/DUTS/SAIL-RISC-V/sailrv_rvvts_dut_vX.patch
+      ```
+ 4. Build the C emulator (you need to have a sail installation in your PATH)
     ```
     ./build_simulator.sh
     ```
