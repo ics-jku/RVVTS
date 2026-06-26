@@ -13,12 +13,15 @@ from .BasicRunner import ProcessTimeoutRunner, RunnerOutcome, RunnerFile
 import re
 import json
 import math
+import subprocess
 
 
 class SailRunner(ProcessTimeoutRunner):
     def setup(self, config=None):
 
         super().setup(config=config)
+
+        sail_riscv_bin = config["sail_riscv_bin"]
 
         self.config = config
         self.rv_extensions = config["rv_extensions"]
@@ -29,71 +32,77 @@ class SailRunner(ProcessTimeoutRunner):
         )
         self.mstate_filename = self.get_dir() + "/mstate.json"
 
-        # create sail.cfg file
-        # get default cfg file
+        #
+        # Create sail_riscv.cfg file
+        #
+
         cfg = {}
-        cfg_filename = "sail-riscv_a33475aeb8.cfg"
-        # TODO: the sail json config has strange style: it contains comments (json5), but also
+
+        # Get original default cfg from sail-riscv run
+        result = subprocess.run(
+            [sail_riscv_bin, "--print-default-config"],
+            capture_output=True,  # captures stdout and stderr
+            text=True,  # returns strings instead of bytes
+        )
+        cfg_template = result.stdout
+
+        # TODO: the sail_riscv json config has strange style: it contains comments (json5), but also
         # quoted keys (expected by sail-riscv). -> We would need "json5" to read it properly
         # and "json" to write it properly.
         # As current solution we use "json" for read and write and strip the comments manually
+
+        # Remove // line comments
+        cfg_template = re.sub(r"^\s*//.*$", "", cfg_template, flags=re.MULTILINE)
+        # Remove /* ... */ block comments
+        cfg_template = re.sub(r"/\*.*?\*/", "", cfg_template, flags=re.DOTALL)
+
+        # read with "json"
         try:
-            with open(f"rvvts/{cfg_filename}", "r", encoding="utf-8") as f:
-                cfg_template = f.read()
-                # Remove // line comments
-                cfg_template = re.sub(
-                    r"^\s*//.*$", "", cfg_template, flags=re.MULTILINE
-                )
-                # Remove /* ... */ block comments
-                cfg_template = re.sub(r"/\*.*?\*/", "", cfg_template, flags=re.DOTALL)
-                cfg = json.loads(cfg_template)
-        except FileNotFoundError:
-            print(f"Config file '{cfg_filename}' not found in the current directory.")
-        except PermissionError:
-            print(f"Permission denied when reading '{cfg_filename}'.")
-        except OSError as e:
-            print(f"Error reading '{cfg_filename}': {e}")
+            cfg = json.loads(cfg_template)
         except json.JSONDecodeError as e:
             print(f"Default config is not valid JSON: {e}")
-        # adapt according to settings (e.g. rv_extensions, memory)
-        # Base
+
+        # Adapt the sail-riscv cfg according to rvvts configs (e.g. rv_extensions, memory)
+        # Adjust base
         cfg["base"]["xlen"] = config["xlen"]
-        # Mandatory extensions
-        self.set_ext(cfg, "Zifencei", True)
-        self.set_ext(cfg, "Zicsr", True)
-        # TODO: Develop a cleaner solution. Something like this: iterate over all extension
-        # in the config and disable, and then iterate over all extensions in self.rv_extensions
-        # to enable extensions in the config
-        for ext in ["M", "F", "D", "Zfh"]:
+
+        # Disable all extensions
+        self.cfg_set_ext_all(cfg, False)
+
+        # Enable mandatory extensions
+        self.cfg_set_ext(cfg, "Zifencei", True)
+        self.cfg_set_ext(cfg, "Zicsr", True)
+
+        # Enable configured extensions
+        for ext in ["M", "F", "D", "Zfh", "V"]:
             if ext.casefold() in self.rv_extensions:
-                self.set_ext(cfg, ext, True)
+                self.cfg_set_ext(cfg, ext, True)
             else:
-                self.set_ext(cfg, ext, False)
+                self.cfg_set_ext(cfg, ext, False)
+
+        # Apply "V" configuration
         if "v" in self.rv_extensions:
-            cfg["extensions"]["V"]["support_level"] = "Full"
             cfg["extensions"]["V"]["vlen_exp"] = int(math.log(config["vector_vlen"], 2))
             cfg["extensions"]["V"]["elen_exp"] = int(math.log(config["vector_elen"], 2))
         else:
-            cfg["extensions"]["V"]["support_level"] = "Disabled"
             cfg["extensions"]["V"]["vlen_exp"] = 3
             cfg["extensions"]["V"]["elen_exp"] = 3
-        # Memory
-        cfg["memory"]["regions"][0]["base"][
-            "value"
-        ] = f"0x{config['memstart'] & ((1 << 64) - 1):016x}"
-        cfg["memory"]["regions"][0]["size"][
-            "value"
-        ] = f"0x{config['memlen'] & ((1 << 64) - 1):016x}"  # config["memlen"]
-        # write cfg fiel
+
+        # Apply memory configuration
+        self.cfg_set_mem(cfg, config["memstart"], config["memlen"])
+
+        # Create the adjusted sail-riscv cfg file
         cfgstr = json.dumps(cfg)
-        self.cmdfile = RunnerFile(dir=self.get_dir(), name=cfg_filename, content=cfgstr)
-        # create command
-        sail_bin = config["sail_riscv_bin"]
+        self.cfgfile = RunnerFile(
+            dir=self.get_dir(), name="sail-riscv.cfg", content=cfgstr
+        )
+
+        # Create command
         self.set_program(
             [
-                sail_bin,
+                sail_riscv_bin,
                 "--config",
-                str(self.cmdfile.get_name()),
+                str(self.cfgfile.get_name()),
                 "--use-abi-names",
                 "--breakpoint",
                 str(config["breakpoint"]),
@@ -112,7 +121,7 @@ class SailRunner(ProcessTimeoutRunner):
         outcome, ret = super().task_post(result)
 
         if outcome != RunnerOutcome.COMPLETE:
-            # The sail model may exit with an errorcode on a failed assertation. In this
+            # The sail_riscv model may exit with an errorcode on a failed assertation. In this
             # case we get a "Assertation failed" message on stderr.
             # Handling such cases as mstate difference (fail) makes it possible
             # 1. to differenciate failed Assertations from other model execution aborts, and
@@ -142,11 +151,91 @@ class SailRunner(ProcessTimeoutRunner):
     def run_handler(self, binary="", **kwargs):
         return super().run_handler(parameters=[binary], **kwargs)
 
-    def set_ext(self, cfg, name, supported):
-        if name in cfg["extensions"]:
-            # Some (e.g., V, Zawrs) have nested objects; only set 'supported' if present
+    def cfg_set_ext_all(self, cfg, supported):
+        for name in cfg["extensions"]:
+            self.cfg_set_ext(cfg, name, bool(supported))
+
+    def cfg_set_ext(self, cfg, name, supported):
+
+        def update_existing(d: dict, key, value):
+            if key not in d:
+                raise KeyError(f"Key does not exist: {key!r}")
+            d[key] = value
+
+        if name not in cfg["extensions"]:
+            print(
+                f'SailRunner: WARNING: Extension "{name}" not in sail-riscv config! -> CHECK RUNNER IMPLEMENTATION'
+            )
+            return False
+
+        ext = cfg["extensions"][name]
+
+        if not isinstance(ext, dict):
+            print(
+                f'SailRunner: WARNING: Node for extension "{name}" not a dictionary! -> CHECK RUNNER IMPLEMENTATION'
+            )
+            return False
+
+        # if extension has 'supported' attribute -> set
+        if "supported" in ext:
+            ext["supported"] = bool(supported)
+            # ok
+            return True
+        else:
+            # Some (e.g., V, Stateen) have special structure -> try
+            try:
+                if name == "Stateen":
+                    update_existing(ext["Smstateen"], "supported", bool(supported))
+                    update_existing(ext["Ssstateen"], "supported", bool(supported))
+                    return True
+                if name == "V":
+                    if supported:
+                        update_existing(ext, "support_level", "Full")
+                    else:
+                        update_existing(ext, "support_level", "Disabled")
+                    return True
+            except Exception:
+                print(
+                    f'SailRunner: WARNING: Broken special handling for extension "{name}"! -> CHECK RUNNER IMPLEMENTATION'
+                )
+                return False
+
+            print(
+                f'SailRunner: WARNING: Missing special handling for extension "{name}"! -> CHECK RUNNER IMPLEMENTATION'
+            )
+            return False
+
+    def cfg_set_mem(self, cfg, memstart, memlen):
+
+        regions = cfg["memory"]["regions"]
+
+        # find main memory region
+        memregion = None
+        for region in regions:
+
+            if "attributes" not in region:
+                continue
+
+            # newer sail-riscv versions have set the attribute 'mem_type' to 'MainMemory'
             if (
-                isinstance(cfg["extensions"][name], dict)
-                and "supported" in cfg["extensions"][name]
+                "mem_type" in region["attributes"]
+                and region["attributes"]["mem_type"] == "MainMemory"
             ):
-                cfg["extensions"][name]["supported"] = bool(supported)
+                # main memory region found
+                memregion = region
+                break
+
+            # on older sail-riscv version we rely on 'include_in_device_tree' which is only set to true for main memory
+            if region["include_in_device_tree"] is True:
+                # main memory region found
+                memregion = region
+                break
+
+        if memregion is None:
+            raise Exception(
+                "SailRunner: ERROR: Unable to set memory region! -> CHECK RUNNER IMPLEMENTATION"
+            )
+
+        # Apply memory configuration
+        memregion["base"]["value"] = f"0x{memstart & ((1 << 64) - 1):016x}"
+        memregion["size"]["value"] = f"0x{memlen & ((1 << 64) - 1):016x}"
