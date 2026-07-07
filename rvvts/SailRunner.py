@@ -104,14 +104,11 @@ class SailRunner(ProcessTimeoutRunner):
                 "--config",
                 str(self.cfgfile.get_name()),
                 "--use-abi-names",
-                "--breakpoint",
+                "--stop-at-pc",
                 str(config["breakpoint"]),
-                "--memstart",
-                str(config["memstart"]),
-                "--memlen",
-                str(config["memlen"]),
+                "--dump-memory",
+                "mem",
             ]
-            # "--inst-limit 100000",
         )
 
     def task_pre(self):
@@ -134,6 +131,7 @@ class SailRunner(ProcessTimeoutRunner):
                 print(
                     "SailRunner: WARNING: UNKNOWN ABORT! -> CHECK RUNNER IMPLEMENTATION"
                 )
+                print(outcome)
                 print(ret.stdout)
                 print(ret.stderr)
             return (outcome, None)
