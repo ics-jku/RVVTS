@@ -193,17 +193,6 @@ class AFC_Ara(AFC):
             # mismatches.
             category = "PCERR"
 
-        elif len(r[IVCSR]) == n_all0:
-            # Only vector CSR state such as `vxrm`, `vxsat`, or `vcsr` differs.
-            # No other architectural state mismatch is present.
-            category = "VCSR_ONLY"
-
-        elif len(r[IVCSR]):
-            # A vector CSR mismatch is present together with other architectural
-            # deviations. This separates mixed failures from pure `VCSR_ONLY`
-            # cases.
-            category = "VCSR"
-
         elif len(r[IEXC]):
             if len(r[IEXC]) > 1:
                 print("AFC_Ara: ERROR: more than one exception entries")
@@ -231,6 +220,17 @@ class AFC_Ara(AFC):
                 raise Exception(
                     "AFC_Ara: Internal Error! -> Checkout output and contact developers"
                 )
+
+        elif len(r[IVCSR]) == n_all0:
+            # Only vector CSR state such as `vxrm`, `vxsat`, or `vcsr` differs.
+            # No other architectural state mismatch is present.
+            category = "VCSR_ONLY"
+
+        elif len(r[IVCSR]):
+            # A vector CSR mismatch is present together with other architectural
+            # deviations. This separates mixed failures from pure `VCSR_ONLY`
+            # cases.
+            category = "VCSR"
 
         elif len(r[IVLENB]):
             # The `vlenb` CSR differs. The DUT and reference therefore disagree
