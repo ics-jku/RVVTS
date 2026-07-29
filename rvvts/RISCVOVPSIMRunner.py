@@ -14,6 +14,8 @@ class RISCVOVPSIMRunner(ProcessTimeoutRunner):
 
         # create command
         variant = "RV" + str(config["xlen"]) + "GC"
+        if "b" in config["rv_extensions"]:
+            variant = variant + "B"
         if "v" in config["rv_extensions"]:
             variant = variant + "V"
         self.base_parameters = [config["riscvovpsim_bin"], "--variant", variant]

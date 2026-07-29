@@ -74,19 +74,29 @@ class SailRunner(ProcessTimeoutRunner):
         self.cfg_set_ext(cfg, "Zicsr", True)
 
         # Enable configured extensions
-        for ext in ["M", "F", "D", "Zfh", "V"]:
+        for ext in ["M", "B", "F", "D", "Zfh", "V"]:
             if ext.casefold() in self.rv_extensions:
                 self.cfg_set_ext(cfg, ext, True)
             else:
                 self.cfg_set_ext(cfg, ext, False)
 
+        # TODO: This is a workaround to prevent the following error messages
+        # "Both supervisor mode (S) and the F extension are not enabled, but `base.mstatus.fs_legal_states` is
+        #  not set to `ExtContext_Off`; i.e. `mstatus.FS` is not read-only zero: it should be read-only zero.
+        # Both supervisor mode (S) and the vector registers are not enabled, but `base.mstatus.vs_legal_states` is
+        #  not set to `ExtContext_Off`; i.e. `mstatus.VS` is not read-only zero: it should be read-only zero."
+        # -> we just always enable F and V
+        self.cfg_set_ext(cfg, "F", True)
+        self.cfg_set_ext(cfg, "D", True)
+        self.cfg_set_ext(cfg, "V", True)
+
         # Apply "V" configuration
-        if "v" in self.rv_extensions:
+        if self.rvisacfg.is_needed("v"):
             cfg["extensions"]["V"]["vlen_exp"] = int(math.log(config["vector_vlen"], 2))
             cfg["extensions"]["V"]["elen_exp"] = int(math.log(config["vector_elen"], 2))
         else:
-            cfg["extensions"]["V"]["vlen_exp"] = 3
-            cfg["extensions"]["V"]["elen_exp"] = 3
+            cfg["extensions"]["V"]["vlen_exp"] = int(math.log(128, 2))
+            cfg["extensions"]["V"]["elen_exp"] = int(math.log(64, 2))
 
         # Apply memory configuration
         self.cfg_set_mem(cfg, config["memstart"], config["memlen"])

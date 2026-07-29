@@ -69,7 +69,7 @@ Example setup for a new Python 3.11 Conda environment:
 
 The Python packages required by RVVTS can be installed with:
 ```
-pip install numpy jsonpickle jupyter
+pip install numpy mergedeep jsonpickle jupyter
 ```
 
 

@@ -65,6 +65,8 @@ config = dict(
 
     RefCovRunner_coverage = None,
     RISCVOVPSIMCover_extensions = "V",
+    # WARNING: B in OVPSim is outdated! -> not really useful
+    #RISCVOVPSIMCover_extensions = "B",
 
     rv_extensions = "mfdv",
     vector_elen = 64,
