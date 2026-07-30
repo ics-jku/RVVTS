@@ -246,8 +246,17 @@ class ProgramGenerator:
 
 
 class ProgramMultiGenerator(ProgramGenerator):
-    def __init__(self, config=None, classes=[]):
+    def __init__(self, config=None, classes=None):
+
+        self.rv_extensions = config["rv_extensions"]
         self.gen = []
+
+        if classes is None:
+            # no classes explicitly given -> generate based on config
+            classes = [RVProgramGenerator]
+            if "v" in self.rv_extensions:
+                classes.append(RVVProgramGenerator)
+
         for gen_class in classes:
             self.gen.append(gen_class(config))
 

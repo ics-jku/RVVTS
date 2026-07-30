@@ -13,7 +13,7 @@ from .CodeBlock import CodeBlock
 from .BasicRunner import Runner, RunnerOutcome, RunnerFile
 from .RefCovRunner import RISCVOVPSIMCoverageRunner
 from .CodeCheckRunner import CodeCheckRunner
-from .ISG import ProgramMultiGenerator, RVProgramGenerator, RVVProgramGenerator
+from .ISG import ProgramMultiGenerator
 
 
 class CovGuidedFuzzerGenRunner(Runner):
@@ -27,7 +27,6 @@ class CovGuidedFuzzerGenRunner(Runner):
         super().setup(myconfig)
 
         self.allow_exceptions = config["CovGuidedFuzzerGen_allow_exceptions"]
-        self.rv_extensions = config["rv_extensions"]
 
         # TODO: make configurable
         self.THRESH_REPEAT_EXTEND = 10
@@ -66,10 +65,7 @@ class CovGuidedFuzzerGenRunner(Runner):
             self.statslog = RunnerFile(dir=self.get_dir(), name="stats.log")
 
         # fuzzer generator
-        classes = [RVProgramGenerator]
-        if "v" in self.rv_extensions:
-            classes.append(RVVProgramGenerator)
-        self.programgenerator = ProgramMultiGenerator(config=config, classes=classes)
+        self.programgenerator = ProgramMultiGenerator(config=config)
 
         subconfig_check = config.copy()
         subconfig_check["dir"] = self.get_dir()

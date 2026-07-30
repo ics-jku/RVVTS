@@ -7,7 +7,7 @@
 #
 
 from .BasicRunner import Runner
-from .ISG import ProgramMultiGenerator, RVProgramGenerator, RVVProgramGenerator
+from .ISG import ProgramMultiGenerator
 from .CodeErrMinRunner import CodeErrMinRunner
 
 
@@ -16,13 +16,8 @@ class FuzzCodeErrMinRunner(Runner):
 
         super().setup(config)
 
-        self.rv_extensions = config["rv_extensions"]
-
         # fuzzer generator
-        classes = [RVProgramGenerator]
-        if "v" in self.rv_extensions:
-            classes.append(RVVProgramGenerator)
-        self.programgenerator = ProgramMultiGenerator(config=config, classes=classes)
+        self.programgenerator = ProgramMultiGenerator(config=config)
 
         # runner for test and code minimization on error
         subconfig = config.copy()
