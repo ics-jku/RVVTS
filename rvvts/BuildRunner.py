@@ -19,7 +19,7 @@ class BuildRunner(ProcessTimeoutRunner):
         skip_on_exception = config["skip_on_exception"]
         xmemstart = config["xmemstart"]
         xmemlen = config["xmemlen"]
-        rv_extensions = config["rv_extensions"] + "_zifencei"
+        rv_extensions = config["rv_extensions"] + "_zicsr_zifencei"
 
         xlen = config["xlen"]
         self.xlenb = xlen // 8
