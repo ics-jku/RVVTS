@@ -67,10 +67,11 @@ class MachineState:
         self.VALUE_MODE_ZERO = 0
         self.VALUE_MODE_RAND = 1
         self.config = config
-        self.xlen = config["xlen"]
-        self.rv_extensions = config["rv_extensions"]
-        self.has_float = sum(e in self.rv_extensions for e in "fdq") > 0
-        self.has_vector = "v" in self.rv_extensions
+        self.rvisacfg = config["rvisacfg"]
+        self.xlen = self.rvisacfg.get_xlen()
+        self.vector_vlenb = self.rvisacfg.get_vlen() // 8
+        self.has_float = self.rvisacfg.is_float_needed()
+        self.has_vector = self.rvisacfg.is_needed("v")
 
         self.quirk_ara_csrs = config.get("quirk_ara_csrs", False)
 
@@ -272,7 +273,7 @@ class MachineState:
         self.dstate_decode()
 
     def init_iregs(self, value_mode):
-        max_regval = (2 ** self.config["xlen"]) - 1
+        max_regval = (2**self.xlen) - 1
         for regname in RVREGS_IDX_DICT:
             self.state[0][regname] = self.gen_value(value_mode, 0, max_regval)
         self.state[0]["zero"] = 0
@@ -281,12 +282,7 @@ class MachineState:
         if not self.has_float:
             return
 
-        if "f" in self.rv_extensions:
-            float_flen = 32
-        if "d" in self.rv_extensions:
-            float_flen = 64
-        if "q" in self.rv_extensions:
-            float_flen = 128
+        float_flen = self.rvisacfg.get_flen()
         float_flenb = float_flen // 8
 
         for i in range(0, 32):
@@ -297,10 +293,9 @@ class MachineState:
         if not self.has_vector:
             return
 
-        vector_vlenb = self.config["vector_vlen"] // 8
         for i in range(0, 32):
             regname = "v" + str(i)
-            self.state[1][regname] = self.gen_byte_values(value_mode, vector_vlenb)
+            self.state[1][regname] = self.gen_byte_values(value_mode, self.vector_vlenb)
 
     def init(self, value_mode):
         self.state = [{}, {}]
@@ -342,8 +337,7 @@ class MachineState:
                 vlmul_val = 1 << vlmul
             else:
                 vlmul_val = 1 / (1 << (-vlmul))
-            vector_vlenb = self.config["vector_vlen"] // 8
-            vlmax = int(vector_vlenb // vsew_val * vlmul_val)
+            vlmax = int(self.vector_vlenb // vsew_val * vlmul_val)
             self.state[1]["vtype"] = vtype
             self.state[1]["vl"] = self.gen_value(
                 value_mode, 0, vlmax
@@ -610,13 +604,7 @@ class MachineState:
         # handle float restore
         if self.has_float:
 
-            if "f" in self.rv_extensions:
-                inst_fload = "flw"
-            if "d" in self.rv_extensions:
-                inst_fload = "fld"
-            if "q" in self.rv_extensions:
-                inst_fload = "flq"
-
+            inst_fload = self.rvisacfg.get_fload_max()
             fp_regs = False
             code = """\
     // FLOATINGPOINT STATE DATA
@@ -819,7 +807,7 @@ class RegStateDump(StateDump):
         self.addr = addr
         self.offset = offset
         self.reglist = reglist
-        xlen = config["xlen"]
+        xlen = config["rvisacfg"].get_xlen()
         self.xlenb = xlen // 8
         if xlen == 32:
             self.inst_sreg = "sw"
@@ -921,7 +909,7 @@ class VRegStateDump(StateDump):
         self.addr = addr
         self.offset = offset
         self.reglist = reglist
-        self.vlenb = config["vector_vlen"] // 8
+        self.vlenb = config["rvisacfg"].get_vlen() // 8
 
     def get_len(self):
         return len(self.reglist) * self.vlenb
@@ -980,7 +968,7 @@ class DumpFile:
     def __init__(self, config=None, filename="", addr=None):
 
         self.dumpfile_reserve = config["dumpfile_reserve"]
-        self.rv_extensions = config["rv_extensions"]
+        self.rvisacfg = config["rvisacfg"]
         self.memstart = config["memstart"]
         self.memlen = config["memlen"]
         self.xmemstart = config["xmemstart"]
@@ -1011,13 +999,7 @@ class DumpFile:
         self.len += self.istate.get_len()
 
         # save all fregs
-        float_flen = 0
-        if "f" in self.rv_extensions:
-            float_flen = 32
-        if "d" in self.rv_extensions:
-            float_flen = 64
-        if "q" in self.rv_extensions:
-            float_flen = 128
+        float_flen = self.rvisacfg.get_flen()
         if float_flen > 0:
             # store/dump fcsr
             config["float_flen"] = float_flen
@@ -1034,7 +1016,7 @@ class DumpFile:
             self.len += self.fregs.get_len()
 
         # save all vregs
-        if "v" in self.rv_extensions:
+        if self.rvisacfg.is_needed("f"):
             # store/dump vtype, vl, vlenb, vstart, vxrm, vxsat, vcsr
             self.vstate = RegStateDump(
                 config=config,
@@ -1115,7 +1097,7 @@ class DumpFile:
             for idx, regname in enumerate(RVREGS_IDX_DICT):
                 regs[regname] = val[idx]
 
-            if sum(e in self.rv_extensions for e in "fdq"):
+            if self.rvisacfg.is_float_needed():
                 val = self.fstate.extract(file)
                 ret["fcsr"] = val[0]
 
@@ -1125,7 +1107,7 @@ class DumpFile:
                     ret["f" + str(i)] = freg
                     i += 1
 
-            if "v" in self.rv_extensions:
+            if self.rvisacfg.is_needed("v"):
                 val = self.vstate.extract(file)
                 ret["vtype"] = val[0]
                 ret["vl"] = val[1]

@@ -24,7 +24,6 @@ class SailRunner(ProcessTimeoutRunner):
         sail_riscv_bin = config["sail_riscv_bin"]
 
         self.config = config
-        self.rv_extensions = config["rv_extensions"]
         self.dumpfile = DumpFile(
             filename=self.get_dir() + "/mem." + hex(config["memstart"]) + ".bin",
             config=config,
@@ -36,6 +35,7 @@ class SailRunner(ProcessTimeoutRunner):
         # Create sail_riscv.cfg file
         #
 
+        rvisacfg = config["rvisacfg"]
         cfg = {}
 
         # Get original default cfg from sail-riscv run
@@ -62,9 +62,9 @@ class SailRunner(ProcessTimeoutRunner):
         except json.JSONDecodeError as e:
             print(f"Default config is not valid JSON: {e}")
 
-        # Adapt the sail-riscv cfg according to rvvts configs (e.g. rv_extensions, memory)
+        # Adapt the sail-riscv cfg according to rvvts configs (e.g. rvisacfg, memory)
         # Adjust base
-        cfg["base"]["xlen"] = config["xlen"]
+        cfg["base"]["xlen"] = rvisacfg.get_xlen()
 
         # Disable all extensions
         self.cfg_set_ext_all(cfg, False)
@@ -74,8 +74,8 @@ class SailRunner(ProcessTimeoutRunner):
         self.cfg_set_ext(cfg, "Zicsr", True)
 
         # Enable configured extensions
-        for ext in ["M", "B", "F", "D", "Zfh", "V"]:
-            if ext.casefold() in self.rv_extensions:
+        for ext in ["M", "B", "Zbc", "F", "D", "Zfh", "V"]:
+            if rvisacfg.is_needed(ext):
                 self.cfg_set_ext(cfg, ext, True)
             else:
                 self.cfg_set_ext(cfg, ext, False)
@@ -91,9 +91,9 @@ class SailRunner(ProcessTimeoutRunner):
         self.cfg_set_ext(cfg, "V", True)
 
         # Apply "V" configuration
-        if self.rvisacfg.is_needed("v"):
-            cfg["extensions"]["V"]["vlen_exp"] = int(math.log(config["vector_vlen"], 2))
-            cfg["extensions"]["V"]["elen_exp"] = int(math.log(config["vector_elen"], 2))
+        if rvisacfg.is_needed("v"):
+            cfg["extensions"]["V"]["vlen_exp"] = int(math.log(rvisacfg.get_vlen(), 2))
+            cfg["extensions"]["V"]["elen_exp"] = int(math.log(rvisacfg.get_velen(), 2))
         else:
             cfg["extensions"]["V"]["vlen_exp"] = int(math.log(128, 2))
             cfg["extensions"]["V"]["elen_exp"] = int(math.log(64, 2))

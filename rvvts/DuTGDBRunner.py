@@ -17,7 +17,7 @@ class GDBRunner(ProcessTimeoutRunner):
         super().setup(config=config)
 
         self.config = config
-        self.xlen = config["xlen"]
+        xlen = config["rvisacfg"].get_xlen()
 
         self.dumpfile = DumpFile(
             config=config,
@@ -29,7 +29,7 @@ class GDBRunner(ProcessTimeoutRunner):
         # create command file
         memend = config["memstart"] + config["memlen"]
         cmdstr = ""
-        cmdstr += "set architecture riscv:rv" + str(config["xlen"]) + "\n"
+        cmdstr += "set architecture riscv:rv" + str(xlen) + "\n"
         cmdstr += "target remote localhost:" + str(config["debug_port"]) + "\n"
         cmdstr += "set $pc = " + hex(config["xmemstart"]) + "\n"  # force entry point
         cmdstr += "break *" + hex(config["breakpoint"]) + "\n"
@@ -50,7 +50,7 @@ class GDBRunner(ProcessTimeoutRunner):
         self.set_program(
             [config["gdb_bin"], "--command=" + str(self.cmdfile.get_name())]
         )
-        self.bitmask = (1 << config["xlen"]) - 1
+        self.bitmask = (1 << xlen) - 1
 
     def task_pre(self):
         self.dumpfile.delete()

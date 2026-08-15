@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -15,7 +15,7 @@ class VPRunner(ProcessTimeoutRunner):
         super().setup(config=config)
 
         # create command
-        vp_bin = "tiny" + str(config["xlen"]) + "-vp"
+        vp_bin = "tiny" + str(config["rvisacfg"].get_xlen()) + "-vp"
         self.set_program(
             [
                 config["vp_path"] + "/" + vp_bin,

@@ -249,15 +249,15 @@ class ProgramGenerator:
 class ProgramMultiGenerator(ProgramGenerator):
     def __init__(self, config=None, classes=None):
 
-        self.rv_extensions = config["rv_extensions"]
+        self.rvisacfg = config["rvisacfg"]
         self.gen = []
 
         if classes is None:
             # no classes explicitly given -> generate based on config
             classes = [RVProgramGenerator]
-            if "b" in self.rv_extensions:
+            if self.rvisacfg.is_under_test("b") or self.rvisacfg.is_under_test("zbc"):
                 classes.append(RVBProgramGenerator)
-            if "v" in self.rv_extensions:
+            if self.rvisacfg.is_under_test("v"):
                 classes.append(RVVProgramGenerator)
 
         for gen_class in classes:
@@ -318,7 +318,7 @@ class CSRModGenerator:
 class RVBoundedLoadStoreGenerator:
     def __init__(self, config=None):
 
-        self.xlen = config["xlen"]
+        self.xlen = config["rvisacfg"].get_xlen()
         self.xlen_mask = (1 << self.xlen) - 1
         self.memstart = config["memstart"]
         self.memlen = config["memlen"]
@@ -622,12 +622,16 @@ class RVBProgramGenerator(ProgramGenerator):
 
         self.__def_grammars()
 
-        # all (TODO: make selection more granular than simply "B"; based on config -> see Zfh from Kathi FP-RVVTS)
-        # self.__def_grammar(extensions=["base", "Zba", "Zbb", "Zbc", "Zbs"], xlen=config["xlen"])
-        # B extension
-        self.__def_grammar(
-            extensions=["base", "Zba", "Zbb", "Zbs"], xlen=config["xlen"]
-        )
+        # enable extensions
+        rvisacfg = config["rvisacfg"]
+
+        extensions = ["base"]
+        if rvisacfg.is_under_test("b"):
+            extensions += ["zba", "zbb", "zbs"]
+        if rvisacfg.is_under_test("zbc"):
+            extensions += ["zbc"]
+
+        self.__def_grammar(extensions=extensions, xlen=rvisacfg.get_xlen())
 
     def gen_fragment(self, **kwargs):
         code, ann = grammarISG(self.grammar, **kwargs)
@@ -669,7 +673,7 @@ class RVBProgramGenerator(ProgramGenerator):
                 },
             },
             # 30.2. Zba: Extension for Address generation, Version 1.0.0
-            "Zba": {
+            "zba": {
                 "all": {
                     "<R_instr>": [
                         "sh1add",
@@ -691,7 +695,7 @@ class RVBProgramGenerator(ProgramGenerator):
                 },
             },
             # 30.3. Zbb: Extension for Basic bit-manipulation, Version 1.0.0
-            "Zbb": {
+            "zbb": {
                 "all": {
                     "<instr>": [
                         "<R2_instr> <rd>, <rs1>",
@@ -752,8 +756,8 @@ class RVBProgramGenerator(ProgramGenerator):
                 },
             },
             # 30.4. Zbc: Extension for Carry-less multiplication, Version 1.0.0
-            # (TODO: unused - not part of B - see constructor)
-            "Zbc": {
+            # (NOTE: not part of B - see constructor)
+            "zbc": {
                 "all": {
                     "<R_instr>": [
                         "clmul",
@@ -765,7 +769,7 @@ class RVBProgramGenerator(ProgramGenerator):
                 64: {},
             },
             # 30.5. Zbs: Extension for Single-bit instructions, Version 1.0.0
-            "Zbs": {
+            "zbs": {
                 "all": {
                     "<R_instr>": [
                         "bclr",
@@ -876,12 +880,11 @@ class RVVRandRegImmGenerator(RandRegImmGenerator):
 class RVVBoundedLoadStoreGenerator:
     def __init__(self, config=None):
 
-        self.xlen = config["xlen"]
+        rvisacfg = config["rvisacfg"]
+        self.xlen = rvisacfg.get_xlen()
         self.xlen_mask = (1 << self.xlen) - 1
-        self.vector_vlen = config["vector_vlen"]
+        self.vector_vlen = rvisacfg.get_vlen()
         self.vector_vlen_bytes = self.vector_vlen // 8
-        self.vector_elen = config["vector_elen"]
-        self.vector_elen_bytes = self.vector_elen // 8
         self.memstart = config["memstart"]
         self.memlen = config["memlen"]
 
@@ -1340,7 +1343,7 @@ class RVVBoundedLoadStoreGenerator:
 class RVVProgramGenerator(ProgramGenerator):
     def __init__(self, config=None):
 
-        self.has_float = sum(e in config["rv_extensions"] for e in "fdq") > 0
+        self.has_float = config["rvisacfg"].is_float_under_test()
 
         self.quirk_ara_csrs = config.get("quirk_ara_csrs", False)
 

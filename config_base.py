@@ -7,6 +7,8 @@
 # Global base configuration for RVVTS
 # (Overrride in custom config; only change if you know what you are doing!)
 
+from rvvts import RVISACfg
+
 memstart = 0x80000000 # compatible with spike, qemu, riscv-vp++ and ara
 #memlen = 512*1024 # 512KiB
 memlen = 3*1024*1024 # 3MiB
@@ -68,8 +70,8 @@ config = dict(
     # WARNING: B in OVPSim is outdated! -> not really useful
     #RISCVOVPSIMCover_extensions = "B",
 
-    rv_extensions = "mfdv",
-    vector_elen = 64,
+    # enable tests for all extensions supported by rvvts
+    rvisacfg = RVISACfg(xlen = 64, extensions_under_test = ["b", "zbc", "v"], vlen = 128, velen = 64),
 
     memstart = memstart,
     memlen = memlen,

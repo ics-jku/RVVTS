@@ -6,6 +6,8 @@
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
 
+from .RVISACfg import *
+
 from .CodeBlock import *
 from .MachineState import *
 

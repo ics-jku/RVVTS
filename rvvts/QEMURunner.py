@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 #
-# (C) 2023-24 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2023-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -15,17 +15,12 @@ class QEMURunner(ProcessTimeoutRunner):
         super().setup(config=config)
 
         # create command
-        xlen = config["xlen"]
+        rvisacfg = config["rvisacfg"]
+        xlen = rvisacfg.get_xlen()
         qemu_bin = "qemu-system-riscv" + str(xlen)
         cpustr = "rv" + str(xlen)
-        if "v" in config["rv_extensions"]:
-            cpustr = (
-                cpustr
-                + ",v=true,vlen="
-                + str(config["vector_vlen"])
-                + ",elen="
-                + str(config["vector_elen"])
-            )
+        if rvisacfg.is_needed("v"):
+            cpustr = f"{cpustr},v=true,vlen={rvisacfg.get_vlen()},elen={rvisacfg.get_velen()}"
 
         self.set_program(
             [

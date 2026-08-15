@@ -19,30 +19,20 @@ class BuildRunner(ProcessTimeoutRunner):
         skip_on_exception = config["skip_on_exception"]
         xmemstart = config["xmemstart"]
         xmemlen = config["xmemlen"]
-        rv_extensions = config["rv_extensions"] + "_zicsr_zifencei"
+        rvisacfg = config["rvisacfg"]
+        xlen = rvisacfg.get_xlen()
 
-        xlen = config["xlen"]
-        self.xlenb = xlen // 8
         if xlen == 32:
-            march = "rv32i" + rv_extensions
+            march = rvisacfg.to_isa_str()
             mabi = "ilp32"
         elif xlen == 64:
-            march = "rv64i" + rv_extensions
+            march = rvisacfg.to_isa_str()
             mabi = "lp64"
         else:
-            raise Exception(
-                "xlen=" + str(xlen) + " not supported! Valid values are 32, or 64"
-            )
+            raise Exception(f"xlen = {xlen} not supported! Valid values are 32, or 64")
 
-        rv_extensions = config["rv_extensions"]
-        has_float_single = "f" in rv_extensions
-        has_float_double = "d" in rv_extensions
-        has_float_quad = "q" in rv_extensions
-        if has_float_quad:
-            raise Exception("Quad-precision floating-point not supported yet!")
-        has_float = has_float_single or has_float_double or has_float_quad
-
-        has_vector = "v" in rv_extensions
+        has_float = rvisacfg.is_float_needed()
+        has_vector = rvisacfg.is_needed("v")
 
         if self.log:
             self.codefile = RunnerFile(dir=self.get_dir(), name="code.S")
@@ -249,15 +239,9 @@ _01_testcode_init_exec:
 """
 
         if has_float:
-            if has_float_single:
-                instr = "fcvt.s.w"
-            if has_float_double:
-                instr = "fcvt.d.w"
-            if has_float_quad:
-                instr = "fcvt.q.w"
             self.asmhdr += "    # init float registers\n"
             for i in range(0, 32):
-                self.asmhdr += "    " + instr + " f" + str(i) + ", zero\n"
+                self.asmhdr += f"    {rvisacfg.get_fset_max()} f{i}, zero\n"
 
         if has_vector:
             self.asmhdr += """

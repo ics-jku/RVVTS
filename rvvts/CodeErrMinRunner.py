@@ -68,7 +68,6 @@ def code_minimize(
     code: CodeBlock,
     good_idx,
     bad_idx,
-    rv_extensions="",
     **kwargs,
 ):
 
@@ -142,8 +141,6 @@ class CodeErrMinRunner(Runner):
     def setup(self, config):
 
         super().setup(config)
-
-        self.rv_extensions = config["rv_extensions"]
 
         self.CODE_STATUS_EXECUTED = "0: executed"
         self.CODE_STATUS_REDUCED = "1: reduced"
@@ -258,7 +255,6 @@ class CodeErrMinRunner(Runner):
             code_minimize(
                 codecheckrunner=self.codecheckrunner,
                 codecomparerunner=self.codecomparerunner_min,
-                rv_extensions=self.rv_extensions,
                 code=code_block,
                 good_idx=good_idx,
                 bad_idx=bad_idx,

@@ -16,7 +16,6 @@ class SpikeRunner(ProcessTimeoutRunner):
         super().setup(config=config)
 
         self.config = config
-        self.rv_extensions = config["rv_extensions"]
         self.dumpfile = DumpFile(
             filename=self.get_dir() + "/mem." + hex(config["memstart"]) + ".bin",
             config=config,
@@ -34,26 +33,11 @@ class SpikeRunner(ProcessTimeoutRunner):
         )
 
         # create command
-        # --varch does no longer exist in new spike versions (3d4027a2bb559af758a2a9d624a3848ae2485453 (June 22, 2024))
-        # -> use we zvl/zve instead
-        # e.g. ".._zvl512b" (see V spec)
-        rv_extensions = config["rv_extensions"]
-        if "v" in rv_extensions:
-            rv_extensions = rv_extensions.replace(
-                "v",
-                "_zvl"
-                + str(config["vector_vlen"])
-                + "b_zve"
-                + str(config["vector_elen"])
-                + "d",
-            )
-        spike_isa = "RV" + str(config["xlen"]) + "I" + rv_extensions + "_zifencei"
-
         self.set_program(
             [
                 config["spike_bin"],
                 "--isa",
-                spike_isa,
+                config["rvisacfg"].to_isa_str_alt(),
                 "-d",
                 "-m" + hex(config["memstart"]) + ":" + hex(config["memlen"]),
                 "--pc=" + hex(config["xmemstart"]),
