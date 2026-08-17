@@ -136,6 +136,31 @@ class Runner:
     def get_error_cause(self):
         return "unknown"
 
+    def _iter_child_runners(self, value):
+        if isinstance(value, Runner):
+            yield value
+        elif isinstance(value, dict):
+            for item in value.values():
+                yield from self._iter_child_runners(item)
+        elif isinstance(value, (list, tuple, set)):
+            for item in value:
+                yield from self._iter_child_runners(item)
+
+    def _close(self, seen):
+        if id(self) in seen:
+            return
+        seen.add(id(self))
+
+        for value in vars(self).values():
+            for runner in self._iter_child_runners(value):
+                runner._close(seen)
+
+    def close(self):
+        self._close(set())
+
+    def shutdown(self):
+        self.close()
+
     # run method for calling
     # DO NOT OVERRIDE -> use only for call
     def run(self, **kwargs):
@@ -223,11 +248,14 @@ def runner_bench(
 class ThreadingRunner(Runner):
     def setup(self, config=None):
         super().setup(config=config)
-        self.thread = threading.Thread(target=self.__threadf)
+        self.thread = self.__new_thread()
         self.run_event = threading.Event()
         self.ready_event = threading.Event()
         self.running = False
         self.busy = False
+
+    def __new_thread(self):
+        return threading.Thread(target=self.__threadf)
 
     def __threadf(self):
         while True:
@@ -258,6 +286,22 @@ class ThreadingRunner(Runner):
     def wait(self):
         self.ready_event.wait()
         self.ready_event.clear()
+
+    def _close(self, seen):
+        super()._close(seen)
+
+        if self.thread.is_alive():
+            self.running = False
+            self.run_event.set()
+            if self.thread is not threading.current_thread():
+                self.thread.join()
+
+        if not self.thread.is_alive():
+            self.thread = self.__new_thread()
+            self.running = False
+            self.busy = False
+            self.ready_event.clear()
+            self.run_event.clear()
 
     def run_handler(self, blocking=False, **kwargs):
 
@@ -355,6 +399,10 @@ class ProcessTimeoutRunner(ThreadingRunner):
                 os.kill(self.proc_pid, signal.SIGTERM)
             except Exception:
                 pass
+
+    def _close(self, seen):
+        self.stop()
+        super()._close(seen)
 
     def run_handler(self, timeout=1.0, parameters=[], input="", **kwargs):
 
