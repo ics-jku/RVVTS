@@ -189,14 +189,26 @@ class RVISACfg:
     def is_under_test(self, ext):
         return self.ext_under_test.is_set(ext)
 
+    def is_under_test_any(self, ext):
+        return self.ext_under_test.is_set_any(ext)
+
+    def is_under_test_all(self, ext):
+        return self.ext_under_test.is_set_all(ext)
+
     def is_needed(self, ext):
         return self.ext_needed.is_set(ext)
 
+    def is_needed_any(self, ext):
+        return self.ext_needed.is_set_any(ext)
+
+    def is_needed_all(self, ext):
+        return self.ext_needed.is_set_all(ext)
+
     def is_float_needed(self):
-        return self.ext_needed.is_set_any(["f", "d", "q"])
+        return self.is_needed_any(["f", "d", "q"])
 
     def is_float_under_test(self):
-        return self.ext_under_test.is_set_any(["f", "d"])
+        return self.is_under_test_any(["f", "d", "q"])
 
     def to_isa_str(self):
         return self.ext_needed.to_isa_str()

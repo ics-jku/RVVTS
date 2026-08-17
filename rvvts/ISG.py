@@ -26,7 +26,7 @@ class ProgramMultiGenerator(ProgramGenerator):
         if classes is None:
             # no classes explicitly given -> generate based on config
             classes = [RVProgramGenerator]
-            if self.rvisacfg.is_under_test("b") or self.rvisacfg.is_under_test("zbc"):
+            if self.rvisacfg.is_under_test_any(["b", "zbc"]):
                 classes.append(RVBProgramGenerator)
             if self.rvisacfg.is_under_test("v"):
                 classes.append(RVVProgramGenerator)
