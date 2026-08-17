@@ -24,10 +24,10 @@ class RVISACfg:
             self.ext = OrderedDict(
                 [
                     ("m", False),
-                    ("b", False),
                     ("f", False),
                     ("d", False),
                     ("q", False),
+                    ("b", False),
                     ("v", False),
                     ("zbc", False),
                     ("zfh", False),
