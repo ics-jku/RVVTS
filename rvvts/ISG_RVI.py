@@ -6,10 +6,6 @@
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
 
-
-# TODO: I, V, (F,D) -- add random init of registers
-
-
 from .CodeBlock import CodeFragment, CodeFragmentList
 from .MachineState import MachineState
 from .ISG_Base import (
@@ -58,7 +54,7 @@ class CSRModGenerator:
         return ("\n" + code + "\n", {"clob": {reg, csr}})
 
 
-class RVBoundedLoadStoreGenerator:
+class RVIBoundedLoadStoreGenerator:
     def __init__(self, config=None):
 
         self.xlen = config["rvisacfg"].get_xlen()
@@ -222,7 +218,7 @@ class RVBoundedLoadStoreGenerator:
 #     return code
 
 
-# x = RVBoundedLoadStoreGenerator(xlen = 64, dmemstart = 0x2000, dmemlen = 256*1024*1024)
+# x = RVIBoundedLoadStoreGenerator(xlen = 64, dmemstart = 0x2000, dmemlen = 256*1024*1024)
 # for i in range(10000):
 #    x.test()
 
@@ -272,13 +268,13 @@ class RVProgramGenerator(ProgramGenerator):
         config_partmem["memlen"] = (
             config_partmem["memlen"] - config_partmem["quirk_sail_load_offset"]
         )
-        self.blsg_load = RVBoundedLoadStoreGenerator(config=config_partmem)
+        self.blsg_load = RVIBoundedLoadStoreGenerator(config=config_partmem)
 
         # use only dmemory (dmemstart, dmemlen) for stores (protect program)
         config_partmem = config.copy()
         config_partmem["memstart"] = config_partmem["dmemstart"]
         config_partmem["memlen"] = config_partmem["dmemlen"]
-        self.blsg_store = RVBoundedLoadStoreGenerator(config=config_partmem)
+        self.blsg_store = RVIBoundedLoadStoreGenerator(config=config_partmem)
 
         self.__def_grammar()
 

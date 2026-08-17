@@ -6,10 +6,6 @@
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
 
-
-# TODO: I, V, (F,D) -- add random init of registers
-
-
 from .ISG_Base import RandRegImmGenerator
 
 # ## RISC-V FLOAT

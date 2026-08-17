@@ -6,10 +6,6 @@
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
 
-
-# TODO: I, V, (F,D) -- add random init of registers
-
-
 from .CodeBlock import CodeBlock, CodeFragmentList, CodeFragment
 
 import random
