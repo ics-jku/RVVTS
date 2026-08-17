@@ -36,11 +36,15 @@ class SailRunner(ProcessTimeoutRunner):
         #
 
         rvisacfg = config["rvisacfg"]
+        xlen = rvisacfg.get_xlen()
         cfg = {}
 
         # Get original default cfg from sail-riscv run
+        rv32_arg = ""
+        if xlen == 32:
+            rv32_arg = "--rv32"
         result = subprocess.run(
-            [sail_riscv_bin, "--print-default-config"],
+            [sail_riscv_bin, rv32_arg, "--print-default-config"],
             capture_output=True,  # captures stdout and stderr
             text=True,  # returns strings instead of bytes
         )
@@ -64,7 +68,11 @@ class SailRunner(ProcessTimeoutRunner):
 
         # Adapt the sail-riscv cfg according to rvvts configs (e.g. rvisacfg, memory)
         # Adjust base
-        cfg["base"]["xlen"] = rvisacfg.get_xlen()
+        cfg["base"]["xlen"] = xlen
+        if xlen == 32:
+            cfg["memory"]["physaddr_bits"] = 32
+        if xlen == 64:
+            cfg["memory"]["physaddr_bits"] = 56
 
         # Disable all extensions
         self.cfg_set_ext_all(cfg, False)
