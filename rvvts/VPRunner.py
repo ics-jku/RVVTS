@@ -15,21 +15,23 @@ class VPRunner(ProcessTimeoutRunner):
         super().setup(config=config)
 
         # create command
+        rvisacfg = config["rvisacfg"]
         vp_bin = "tiny" + str(config["rvisacfg"].get_xlen()) + "-vp"
-        self.set_program(
-            [
-                config["vp_path"] + "/" + vp_bin,
-                "--memory-start=" + str(config["memstart"]),
-                "--memory-size=" + str(config["memlen"]),
-                "--use-dmi",
-                "--tlm-global-quantum=1000000",
-                "--error-on-zero-traphandler=true",
-                "--intercept-syscalls",
-                "--debug-mode",
-                "--debug-port",
-                str(config["debug_port"]),
-            ]
-        )
+        program = [
+            config["vp_path"] + "/" + vp_bin,
+            "--memory-start=" + str(config["memstart"]),
+            "--memory-size=" + str(config["memlen"]),
+            "--use-dmi",
+            "--tlm-global-quantum=1000000",
+            "--error-on-zero-traphandler=true",
+            "--intercept-syscalls",
+            "--debug-mode",
+            "--debug-port",
+            str(config["debug_port"]),
+        ]
+        if rvisacfg.is_needed("zfh"):
+            program.append("--en-ext-Zfh")
+        self.set_program(program)
 
     def run_handler(self, binary="", **kwargs):
         return super().run_handler(parameters=[binary], **kwargs)

@@ -23,6 +23,9 @@ config = dict(
     # reserve 20KiB in xmem for dumpfile (TODO: automate calculation) NEEDED FOR VLEN=4096 ((0x00300000/2)-0x0017f180 = 3712KiB reserve)
     dumpfile_reserve = 20*1024,
 
+    # force frm to specific value (keep empty for random)
+    RVFProgramGenerator_force_float_frm = "",
+
     # EXPERIMENTAL: ENABLING THIS MAKES NOT MUCH SENSE YET!
     CovGuidedFuzzerGen_allow_exceptions = False,
 
@@ -69,9 +72,12 @@ config = dict(
     RISCVOVPSIMCover_extensions = "V",
     # WARNING: B in OVPSim is outdated! -> not really useful
     #RISCVOVPSIMCover_extensions = "B",
+    # WARNING: mnemonic and basic coverage only (no extended coverage)!
+    #RISCVOVPSIMCover_extensions = "F,D",
 
     # enable tests for all extensions supported by rvvts
-    rvisacfg = RVISACfg(xlen = 64, extensions_under_test = ["b", "zbc", "v"], vlen = 128, velen = 64),
+    # WARNING: Q is not fully supported yet!
+    rvisacfg = RVISACfg(xlen = 64, extensions_under_test = ["b", "zbc", "zfh", "f", "d", "v"], vlen = 128, velen = 64),
 
     memstart = memstart,
     memlen = memlen,

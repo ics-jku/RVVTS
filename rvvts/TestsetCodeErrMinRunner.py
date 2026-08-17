@@ -142,6 +142,7 @@ class TestsetCodeErrMinRunner(Runner):
         lines = [2**31, 0, 0]
         ins = [2**31, 0, 0]
         vins = [2**31, 0, 0]
+        fins = [2**31, 0, 0]
 
         for t in self.testset:
             testcases += 1
@@ -153,10 +154,12 @@ class TestsetCodeErrMinRunner(Runner):
             update_stats(lines, cstat.lines)
             update_stats(ins, cstat.ins)
             update_stats(vins, cstat.vins)
+            update_stats(fins, cstat.fins)
 
         fragments[2] /= testcases
         lines[2] /= testcases
         ins[2] /= testcases
         vins[2] /= testcases
+        fins[2] /= testcases
 
-        return (testcases, cstatsum, fragments, lines, ins, vins)
+        return (testcases, cstatsum, fragments, lines, ins, vins, fins)

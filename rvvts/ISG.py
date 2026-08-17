@@ -11,6 +11,7 @@ from .CodeBlock import CodeFragmentList
 from .ISG_Base import ProgramGenerator
 from .ISG_RVI import RVProgramGenerator
 from .ISG_RVB import RVBProgramGenerator
+from .ISG_RVF import RVFProgramGenerator
 from .ISG_RVV import RVVProgramGenerator
 
 import random
@@ -28,6 +29,8 @@ class ProgramMultiGenerator(ProgramGenerator):
             classes = [RVProgramGenerator]
             if self.rvisacfg.is_under_test_any(["b", "zbc"]):
                 classes.append(RVBProgramGenerator)
+            if self.rvisacfg.is_float_under_test():
+                classes.append(RVFProgramGenerator)
             if self.rvisacfg.is_under_test("v"):
                 classes.append(RVVProgramGenerator)
 

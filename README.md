@@ -3,6 +3,7 @@
 The **RVVTS Framework** is a modular, open-source framework designed for comprehensive testing of **RISC-V Vector (RVV)** implementations.
 It addresses the complexity of RVV's 600+ configurable instructions by supporting both positive and negative testing scenarios.
 RVVTS is no longer limited to vector testing and now also supports other RISC-V extensions, including the B bit-manipulation extension family and the Zbc carry-less multiplication extension.
+Furthermore, RVVTS incorporates [FP-RVVTS](https://ics.jku.at/files/2026FDL_FP-RVVTS.pdf), adding support for testing the RISC-V F, D, and Zfh floating-point extensions.
 The framework introduces the **Single Instruction Isolation with Code Minimization** and **Automated Failure Categorization (AFC)** techniques, which drastically reduce manual effort required to analyze failing test cases.
 
 **RVVTS** automates the entire verification process, from test generation and execution to coverage measurement and failure analysis.
@@ -271,17 +272,35 @@ You can now investigate the other Jupyter notebooks as presented in the [Project
 ## Publications
 
 The initial paper on RVVTS was presented at ICCAD 2024 and is available as a [.pdf](https://ics.jku.at/files/2024ICCAD_Single-Instruction-Isolation-for-RISC-V-Vector-Test-Failures.pdf).
+The state of RVVTS from this initial paper (RVVTS version 1), including the pre-generated test sets, is available under the tag [RVVTSv1_ICCAD_2024](https://github.com/ics-jku/RVVTS/tree/RVVTSv1_ICCAD_2024).
 
-The state of RVVTS from the initial paper (RVVTS version 1), including the pre-generated test sets, is available under the tag [RVVTSv1_ICCAD_2024](https://github.com/ics-jku/RVVTS/tree/RVVTSv1_ICCAD_2024).
+The initial paper on FP-RVVTS, whose functionality is now integrated into RVVTS, was presented at FDL 2026 and is available as a [.pdf](https://ics.jku.at/files/2026FDL_FP-RVVTS.pdf).
+
 
 If you use RVVTS or find it useful, you can cite our paper as follows:
 
 ```
 @inproceedings{SG:2024b,
-  author =        {Manfred Schl{\"{a}}gl and Daniel Gro{\ss}e},
-  booktitle =     {International Conference on Computer-Aided Design},
-  title =         {Single Instruction Isolation for {RISC-V} Vector Test Failures},
-  year =          {2024},
+  author = {Manfred Schl{\"{a}}gl and Daniel Gro{\ss}e},
+  title = {Single Instruction Isolation for {RISC-V} Vector Test Failures},
+  booktitle = {IEEE/ACM International Conference on Computer-Aided Design (ICCAD)},
+  year = {2024},
+  pages = {156:1--156:9},
+  doi = {10.1145/3676536.3676755},
+  code = {https://github.com/ics-jku/RVVTS},
+  url = {https://ics.jku.at/files/2024ICCAD_Single-Instruction-Isolation-for-RISC-V-Vector-Test-Failures.pdf}
+}
+```
+
+If you use RVVTS's floating-point testing functionality, you can cite our FP-RVVTS paper as follows:
+
+```
+@inproceedings{RSG:2026b,
+  author =        {Katharina Ruep and Manfred Schl{\"{a}}gl and Daniel Gro{\ss}e},
+  title =         {{FP-RVVTS:} {Sail}-guided Verification of {RISC-V} Floating-Point Implementations},
+  booktitle =     {Forum on Specification and Design Languages (FDL)},
+  url =           {https://ics.jku.at/files/2026FDL_FP-RVVTS.pdf},
+  year =          {2026},
 }
 ```
 

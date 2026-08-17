@@ -54,6 +54,7 @@ class CSRModGenerator:
         return ("\n" + code + "\n", {"clob": {reg, csr}})
 
 
+# TODO: generalize (-> ISG_Base)
 class RVIBoundedLoadStoreGenerator:
     def __init__(self, config=None):
 

@@ -16,12 +16,14 @@ class CodeStats:
         self.lines = 0
         self.ins = 0
         self.vins = 0
+        self.fins = 0
 
     def add(self, b):
         self.fragments += b.fragments
         self.lines += b.lines
         self.ins += b.ins
         self.vins += b.vins
+        self.fins += b.fins
 
     def __str__(self):
         ret = ""
@@ -29,6 +31,7 @@ class CodeStats:
         ret += "#lines:       " + str(self.lines) + "\n"
         ret += "#ins:         " + str(self.ins) + "\n"
         ret += "#vins:        " + str(self.vins) + "\n"
+        ret += "#fins:        " + str(self.fins) + "\n"
         return ret
 
     def __repr__(self):
@@ -95,6 +98,8 @@ class CodeFragment(CodeElement):
                 s.ins += 1
             if re.match(r"^\s*v.*", line):
                 s.vins += 1
+            if re.match(r"^\s*f.*", line):
+                s.fins += 1
         return s
 
 

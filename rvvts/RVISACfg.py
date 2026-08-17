@@ -24,12 +24,13 @@ class RVISACfg:
             self.ext = OrderedDict(
                 [
                     ("m", False),
+                    ("b", False),
                     ("f", False),
                     ("d", False),
                     ("q", False),
-                    ("b", False),
                     ("v", False),
                     ("zbc", False),
+                    ("zfh", False),
                     ("zicsr", False),
                     ("zifencei", False),
                 ]
@@ -48,7 +49,8 @@ class RVISACfg:
                 self.fset_max = "fcvt.d.w"
                 self.fload_max = "fld"
                 self.fstore_max = "fsd"
-            elif self.is_set("f"):
+            # Note: zfh requires f -> so if we have zfh we still have 32 bit f registers
+            elif self.is_set_any(["f", "zfh"]):
                 self.flen = 32
                 self.fset_max = "fcvt.s.w"
                 self.fload_max = "flw"
@@ -159,7 +161,9 @@ class RVISACfg:
         if self.ext_needed.is_set("v"):
             self.ext_needed.set("d")
             self.ext_needed.set("m")
-        if self.ext_needed.is_set("d"):
+        if self.ext_needed.is_set("q"):
+            self.ext_needed.set("d")
+        if self.ext_needed.is_set_any(["d", "zfh"]):
             self.ext_needed.set("f")
         # always needed (for instrumentation
         self.ext_needed.set("zicsr")
@@ -205,10 +209,10 @@ class RVISACfg:
         return self.ext_needed.is_set_all(ext)
 
     def is_float_needed(self):
-        return self.is_needed_any(["f", "d", "q"])
+        return self.is_needed_any(["zfh", "f", "d", "q"])
 
     def is_float_under_test(self):
-        return self.is_under_test_any(["f", "d", "q"])
+        return self.is_under_test_any(["zfh", "f", "d", "q"])
 
     def to_isa_str(self):
         return self.ext_needed.to_isa_str()

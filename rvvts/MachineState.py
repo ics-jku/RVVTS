@@ -14,6 +14,7 @@ import random
 import copy
 import jsonpickle
 import hashlib
+import numpy as np
 
 RVREGS_IDX_DICT = {
     "zero": 0,
@@ -133,6 +134,58 @@ class MachineState:
         else:
             # fallback to raw value
             return str(self.state[1][parent])
+
+    def _value_to_string(self, value):
+        return f"{value:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}({value})"
+
+    @staticmethod
+    def _is_float_reg_name(sname):
+        return sname.startswith("f") and sname[1:].isdigit()
+
+    @staticmethod
+    def _is_vector_reg_name(sname):
+        return sname.startswith("v") and sname[1:].isdigit()
+
+    def _float_bytes_to_str(self, value):
+        hex_value = int.from_bytes(value, byteorder="little")
+        flen = len(value) * 8
+
+        def decode(bits, byte_count, dtype, precision):
+            dec_value = np.frombuffer(
+                bits.to_bytes(byte_count, "little"), dtype=dtype, count=1
+            )[0]
+            return f"{dec_value}{precision}"
+
+        def is_nan_boxed(nbits):
+            if flen <= nbits:
+                return False
+            return (hex_value >> nbits) == (2 ** (flen - nbits)) - 1
+
+        if flen == 16:
+            return decode(hex_value, 2, "<f2", "_h")
+        elif self.rvisacfg.is_needed("zfh") and is_nan_boxed(16):
+            return decode(hex_value & 0xFFFF, 2, "<f2", "_h")
+        elif flen == 32 or is_nan_boxed(32):
+            return decode(hex_value & 0xFFFFFFFF, 4, "<f4", "_s")
+        elif flen == 64 or is_nan_boxed(64):
+            return decode(hex_value & 0xFFFFFFFFFFFFFFFF, 8, "<f8", "_d")
+        return None
+
+    def _bytes_to_string(self, sname, value):
+        res = " ".join("{:02x}".format(x) for x in value)
+        if self._is_float_reg_name(sname):
+            float_str = self._float_bytes_to_str(value)
+            if float_str:
+                res += f"({float_str})"
+        return res
+
+    def _bytes_to_hex_string(self, sname, value):
+        res = "0x" + "".join("{:02x}".format(x) for x in value[::-1])
+        if self._is_float_reg_name(sname):
+            float_str = self._float_bytes_to_str(value)
+            if float_str:
+                res += f"({float_str})"
+        return res
 
     def dstate_decode_mstatus_fsvs(self):
         rname = "mstatus.fs/vs"
@@ -375,25 +428,25 @@ class MachineState:
             if regname != "pc":
                 regname = regname + "(x" + str(RVREGS_IDX_DICT[regname]) + ")"
             regname = regname.ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
-            output += (
-                regname
-                + f"{val:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}("
-                + str(val)
-                + ")\n"
-            )
+            output += regname + self._value_to_string(val) + "\n"
 
         def state_entry_as_string(sname, val):
             res = ""
+            force_single_line = False
             if isinstance(val, bool):
                 val = str(val)
             elif isinstance(val, int):
-                val = f"{val:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}(" + str(val) + ")"
+                val = self._value_to_string(val)
             elif isinstance(val, bytes):
-                val = " ".join("{:02x}".format(x) for x in val)
+                force_single_line = self._is_float_reg_name(sname)
+                if force_single_line:
+                    val = self._bytes_to_hex_string(sname, val)
+                else:
+                    val = self._bytes_to_string(sname, val)
             else:
                 val = str(val)
 
-            if len(val) < 48:
+            if force_single_line or len(val) < 48:
                 sname = sname.ljust(self.FORMAT_MAX_NAME_WIDTH, " ")
                 res += sname + str(val)
             else:
@@ -446,8 +499,8 @@ class MachineState:
                     diff = ""
                 output += (
                     regname
-                    + f"{val_ref:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}".ljust(48, " ")
-                    + f"{val_dut:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}".ljust(48, " ")
+                    + self._value_to_string(val_ref).ljust(48, " ")
+                    + self._value_to_string(val_dut).ljust(48, " ")
                     + diff
                     + "\n"
                 )
@@ -462,19 +515,15 @@ class MachineState:
                 val_ref_str = str(val_ref)
                 val_dut_str = str(val_dut)
             elif isinstance(val_ref, int) and isinstance(val_dut, int):
-                val_ref_str = (
-                    f"{val_ref:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}("
-                    + str(val_ref)
-                    + ")"
-                )
-                val_dut_str = (
-                    f"{val_dut:#0{self.FORMAT_MAX_VALUE_WIDTH+2}x}("
-                    + str(val_dut)
-                    + ")"
-                )
+                val_ref_str = self._value_to_string(val_ref)
+                val_dut_str = self._value_to_string(val_dut)
             elif isinstance(val_ref, bytes) and isinstance(val_dut, bytes):
-                val_ref_str = " ".join("{:02x}".format(x) for x in val_ref)
-                val_dut_str = " ".join("{:02x}".format(x) for x in val_dut)
+                if self._is_vector_reg_name(sname):
+                    val_ref_str = self._bytes_to_string(sname, val_ref)
+                    val_dut_str = self._bytes_to_string(sname, val_dut)
+                else:
+                    val_ref_str = self._bytes_to_hex_string(sname, val_ref)
+                    val_dut_str = self._bytes_to_hex_string(sname, val_dut)
             else:
                 val_ref_str = str(val_ref)
                 val_dut_str = str(val_dut)
