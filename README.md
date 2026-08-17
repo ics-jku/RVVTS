@@ -2,6 +2,7 @@
 
 The **RVVTS Framework** is a modular, open-source framework designed for comprehensive testing of **RISC-V Vector (RVV)** implementations.
 It addresses the complexity of RVV's 600+ configurable instructions by supporting both positive and negative testing scenarios.
+RVVTS is no longer limited to vector testing and now also supports other RISC-V extensions, including the B bit-manipulation extension family and the Zbc carry-less multiplication extension.
 The framework introduces the **Single Instruction Isolation with Code Minimization** and **Automated Failure Categorization (AFC)** techniques, which drastically reduce manual effort required to analyze failing test cases.
 
 **RVVTS** automates the entire verification process, from test generation and execution to coverage measurement and failure analysis.
