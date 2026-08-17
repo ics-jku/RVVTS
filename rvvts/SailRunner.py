@@ -141,7 +141,7 @@ class SailRunner(ProcessTimeoutRunner):
             # Handling such cases as mstate difference (fail) makes it possible
             # 1. to differenciate failed Assertations from other model execution aborts, and
             # 2. to minimize such cases with CodeErrMinRunner.
-            if "Assertion failed" in ret.stderr:
+            if ret and "Assertion failed" in ret.stderr:
                 mstate = MachineState(self.config)
                 mstate.state[1]["lastPC"] = -1
                 return (RunnerOutcome.COMPLETE, mstate)
@@ -150,8 +150,9 @@ class SailRunner(ProcessTimeoutRunner):
                     "SailRunner: WARNING: UNKNOWN ABORT! -> CHECK RUNNER IMPLEMENTATION"
                 )
                 print(outcome)
-                print(ret.stdout)
-                print(ret.stderr)
+                if ret:
+                    print(ret.stdout)
+                    print(ret.stderr)
             return (outcome, None)
 
         try:
