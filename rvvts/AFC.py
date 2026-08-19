@@ -92,6 +92,10 @@ class AFC_Ara(AFC):
     # override
     def _categorize(self, dir, res_code_block, res_end_ref_mstate, res_end_dut_mstate):
 
+        # missing state -> no AFC possible -> UNKNOWN
+        if res_end_ref_mstate is None or res_end_dut_mstate is None:
+            return "UNKNOWN", []
+
         def tgrepmult(text, patterns):
             res = [[] for i in patterns]
 
