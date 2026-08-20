@@ -473,6 +473,10 @@ class AFC_Sail(AFC):
     # override
     def _categorize(self, dir, res_code_block, res_end_ref_mstate, res_end_dut_mstate):
 
+        # missing state -> no AFC possible -> UNKNOWN
+        if res_end_ref_mstate is None or res_end_dut_mstate is None:
+            return "UNKNOWN", []
+
         # Check sail-riscv categories
         if res_end_dut_mstate.state[1]["lastPC"] == -1:
             # Sail-RISCV Assertation
