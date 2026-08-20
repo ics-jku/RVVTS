@@ -2,6 +2,7 @@
 # coding: utf-8
 #
 # (C) 2025-26 Manfred Schlaegl <manfred.schlaegl@jku.at>, Institute for Complex Systems, JKU Linz
+# (C) 2026 Katharina Ruep <katharina.ruep@jku.at>, Institute for Complex Systems, JKU Linz
 #
 # SPDX-License-Identifier: BSD 3-clause "New" or "Revised" License
 #
@@ -498,3 +499,254 @@ class AFC_Sail(AFC):
         return self.afc_ara._categorize(
             dir, res_code_block, res_end_ref_mstate, res_end_dut_mstate
         )
+
+
+# AFC Categorizer for FP-RVVTS
+# presented in
+# "
+# Katharina Ruep, Manfred Schlägl, and Daniel Große.
+# FP-RVVTS: Sail-guided Verification of RISC-V Floating-Point Implementations.
+# In Forum on Specification and Design Languages (FDL), 2026.
+# "
+# This implements the Automated Failure Characterization described for
+# FP-RVVTS: failures are summarized by their minimized instruction, state
+# differences, affected registers, and attributes such as FP exception flags,
+# special FP values, and precision mismatches. The architectural failure
+# category itself is inherited from the Sail-RISC-V AFC categorizer.
+class AFC_FP(AFC):
+    def __init__(self, config=None):
+        super().__init__(config)
+
+        self.afc_sail = AFC_Sail(config)
+
+        # override
+        self.AFC_Categorizer = "FP"
+        self.AVAIL_CATEGORIES = self.afc_sail.AVAIL_CATEGORIES
+        self.AVAIL_ATTRIBUTES = [
+            "fcsr",
+            "special values",
+            "precision mismatch",
+        ]
+
+    def run(self, dir, res_code_block, res_end_ref_mstate, res_end_dut_mstate):
+        category, attributes = self._categorize(
+            dir, res_code_block, res_end_ref_mstate, res_end_dut_mstate
+        )
+
+        with open(os.path.join(dir, "AFC_report.log"), "w") as f:
+            f.write(f"AFC Categorizer: {self.AFC_Categorizer}\n")
+            f.write(f"AVAIL CATEGORIES: {self.AVAIL_CATEGORIES}\n")
+            f.write(f"AVAIL ATTRIBUTES: {self.AVAIL_ATTRIBUTES}\n")
+            f.write(f"CATEGORY: {category}\n")
+            f.write(f"ATTRIBUTES: {attributes}\n")
+
+        self._write_fp_report(dir, attributes)
+
+        return category, attributes
+
+    # override
+    def _categorize(self, dir, res_code_block, res_end_ref_mstate, res_end_dut_mstate):
+        category, _ = self.afc_sail._categorize(
+            dir, res_code_block, res_end_ref_mstate, res_end_dut_mstate
+        )
+
+        self._fp_report = self._collect_fp_report_data(
+            dir, res_code_block, res_end_ref_mstate, res_end_dut_mstate
+        )
+
+        return category, self._fp_report["attributes"]
+
+    def _collect_fp_report_data(
+        self, dir, res_code_block, res_end_ref_mstate, res_end_dut_mstate
+    ):
+        instruction_line = self._extract_instruction_line(dir, res_code_block)
+        instruction_name = self._extract_instruction_name(dir, instruction_line)
+        registers = self._extract_registers(instruction_line)
+
+        mstate_diff = ""
+        if res_end_ref_mstate is not None and res_end_dut_mstate is not None:
+            mstate_diff = res_end_ref_mstate.compare(
+                res_end_dut_mstate, diff_full=True
+            )[1]
+
+        lines_with_x, lines_with_registers, flags_set = self._process_mstate_diff(
+            mstate_diff, registers
+        )
+        attributes = self._extract_attributes(
+            instruction_name, lines_with_registers, flags_set
+        )
+
+        return {
+            "instruction_line": instruction_line,
+            "registers": registers,
+            "diffs": lines_with_x,
+            "register_lines": lines_with_registers,
+            "attributes": attributes,
+        }
+
+    def _write_fp_report(self, dir, attributes):
+        report = self._fp_report
+        label_width = len("Instruction: ")
+        sep_full = "+" + ("=" * 120) + "+\n"
+        sep_part = "+" + ("-" * 120) + "+\n"
+        reg_header = (
+            "REG".ljust(20, " ")
+            + "REF".ljust(48, " ")
+            + "DUT".ljust(48, " ")
+            + "DIFF \n"
+        )
+
+        with open(os.path.join(dir, "AFC_FP_report.log"), "w") as stats_file:
+            stats_file.write(sep_full)
+            stats_file.write(
+                "Instruction: ".ljust(label_width) + f"{report['instruction_line']}\n"
+            )
+            stats_file.write(sep_full)
+            stats_file.write("Attributes: ".ljust(label_width))
+            stats_file.write(self._format_attributes(attributes) + "\n")
+            stats_file.write(sep_part)
+            stats_file.write(reg_header)
+            stats_file.write(sep_part)
+            stats_file.write("diffs:\n")
+            stats_file.write("\n".join(report["diffs"]) + "\n")
+            stats_file.write(sep_part)
+            stats_file.write(f"Registers: {', '.join(report['registers'])}\n")
+            stats_file.write("\n".join(report["register_lines"]) + "\n")
+            stats_file.write(sep_full)
+
+    def _format_attributes(self, attributes):
+        if not attributes:
+            return "none"
+        return ", ".join(f"{attr} {values}" for attr, values in attributes)
+
+    def _extract_instruction_name(self, dir, instruction_line):
+        directory_name = os.path.basename(dir) if dir is not None else ""
+        match = re.search(r"ERROR_(.*?)_iteration", directory_name)
+        if match:
+            return match.group(1)
+
+        if instruction_line:
+            return instruction_line.split()[0]
+
+        return ""
+
+    def _extract_instruction_line(self, dir, res_code_block):
+        if res_code_block is not None:
+            code_lines = res_code_block.as_code().splitlines()
+        else:
+            code_lines = self._load_code_lines_from_dir(dir)
+
+        instruction_lines = []
+        for line in code_lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("//") or stripped.startswith("#"):
+                continue
+            if stripped.startswith(".") or stripped.endswith(":"):
+                continue
+            instruction_lines.append(stripped)
+
+        if instruction_lines:
+            return instruction_lines[-1]
+
+        return ""
+
+    def _load_code_lines_from_dir(self, dir):
+        if dir is None:
+            return []
+
+        candidates = [
+            os.path.join(
+                dir,
+                "CodeErrMinRunner_0",
+                "CodeCompareRunner_1",
+                "BuildRunner_0",
+                "code.S",
+            ),
+            os.path.join(dir, "CodeCompareRunner_1", "BuildRunner_0", "code.S"),
+            os.path.join(dir, "BuildRunner_0", "code.S"),
+        ]
+        for path in candidates:
+            if os.path.exists(path):
+                with open(path, "r") as f:
+                    return f.readlines()
+
+        return []
+
+    def _extract_registers(self, instruction_line):
+        return re.findall(r"[a-z]+[0-9]+", instruction_line)
+
+    def _process_mstate_diff(self, mstate_diff, registers):
+        lines_with_x = []
+        lines_with_registers = []
+        flags_set = []
+
+        for line in mstate_diff.split("\n"):
+            line = line.rstrip()
+            match_line = line.lstrip()
+            if line.endswith("X"):
+                lines_with_x.append(line)
+
+            if any(
+                match_line.startswith(f"{register} ") or f"({register})" in line
+                for register in registers
+            ):
+                lines_with_registers.append(line)
+
+            m = re.match(r"\s*fcsr\.(\w+).*True", line)
+            if m:
+                flags_set.append(m.group(1))
+
+        return lines_with_x, lines_with_registers, flags_set
+
+    def _extract_attributes(self, instruction_name, lines_with_registers, flags_set):
+        attributes = []
+
+        fcsr_flags = []
+        for flag, name in [
+            ("nv", "invalid"),
+            ("uf", "underflow"),
+            ("of", "overflow"),
+            ("dz", "div-by-0"),
+            ("nx", "inexact"),
+        ]:
+            if flag in flags_set:
+                fcsr_flags.append(name)
+        if fcsr_flags:
+            attributes.append(("fcsr", fcsr_flags))
+
+        special_values = []
+        for value in ["nan", "inf", "zero"]:
+            if value == "zero":
+                found = any("0.0" in line for line in lines_with_registers)
+            else:
+                found = any(value in line for line in lines_with_registers)
+            if found:
+                special_values.append(value)
+        if special_values:
+            attributes.append(("special values", special_values))
+
+        precisions = ["h", "s", "d"]
+        instr_precision = [
+            part[0]
+            for part in instruction_name.split(".")[1:]
+            if part and part[0] in precisions
+        ]
+        reg_precision = [
+            line.split("_", 1)[1][0] for line in lines_with_registers if "_" in line
+        ]
+
+        precision_mismatch = next(
+            (
+                (instr_prec, reg_prec)
+                for instr_prec in instr_precision
+                for reg_prec in reg_precision
+                if instr_prec != reg_prec
+            ),
+            None,
+        )
+        if precision_mismatch:
+            attributes.append(("precision mismatch", precision_mismatch))
+
+        return attributes
