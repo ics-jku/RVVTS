@@ -372,7 +372,7 @@ class AFC_Ara(AFC):
             fflags_ref = cref & 0x1F
             fflags_dut = cdut & 0x1F
             rest_ref = cref & ~0x1F
-            rest_dut = cref & ~0x1F
+            rest_dut = cdut & ~0x1F
             #            frm_ref = cref & 0xe0
             #            frm_dut = cdut & 0xe0
             if fflags_ref != fflags_dut and rest_ref == rest_dut:
