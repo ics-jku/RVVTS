@@ -19,6 +19,8 @@ class QEMURunner(ProcessTimeoutRunner):
         xlen = rvisacfg.get_xlen()
         qemu_bin = "qemu-system-riscv" + str(xlen)
         cpustr = "rv" + str(xlen)
+        if rvisacfg.is_needed("c"):
+            cpustr = f"{cpustr},c=true"
         if rvisacfg.is_needed("f"):
             cpustr = f"{cpustr},f=true"
         if rvisacfg.is_needed("d"):

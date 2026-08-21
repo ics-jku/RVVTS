@@ -65,6 +65,11 @@ class BuildRunner(ProcessTimeoutRunner):
         # HEADER, START AND END CODE
         self.asmhdr = """\
 # HEADER, START AND END (breakpoint loop) CODE
+
+# disable compressed instruction emission for instrumentation code
+.option push
+.option norvc
+
 .globl _start
 _00_start:                  # @xmemstart
     # jump to real start
@@ -76,6 +81,7 @@ _05_end:
     j _06_breakpoint_end_loop
 
 # dummy HTIF symbols (needed for qemu)
+.balign 8
 tohost: .dword 0
 .size tohost, 8
 fromhost: .dword 0
@@ -93,10 +99,9 @@ _04a_finalize_testcode_complete:
 {self.dumpfile.tmpregstore.gen_save()}\
     # handle state (load all, modify, store all)
 {self.dumpfile.estate.gen_load()}\
-    # update address of last instruction in test
+    # on normal completion, store the end-of-test PC. This avoids guessing the
+    # previous instruction length when compressed instructions are enabled.
     la   x5, _03_testcode_end
-    # TODO: handle compressed (x5-2)
-    addi x5, x5, -4
 {self.dumpfile.estate.gen_save()}\
     # restore context
 {self.dumpfile.tmpregstore.gen_load()}\
@@ -180,9 +185,17 @@ _exception_handler:
 """
             if skip_on_exception:
                 self.asmhdr += f"""
-    # skip on exception: restore context and jump back to next instruction (ra+4)
-    # TODO: handle compressed (ra+2)
-    addi x5, x5, 4
+    # skip on exception: restore context and jump back to next instruction
+    # compressed instructions have bits [1:0] != 0b11 and are 2 bytes long
+    lhu x7, 0(x5)
+    andi x7, x7, 0x3
+    li x6, 0x3
+    beq x7, x6, 1f
+    addi x5, x5, 2 # compressed (ra + 2)
+    j 2f
+1:
+    addi x5, x5, 4 # uncompressed (ra + 4)
+2:
     csrw mepc, x5
 {self.dumpfile.tmpregstore.gen_load()}\
     csrrw gp, mscratch, gp
@@ -256,14 +269,24 @@ _01_testcode_init_exec:
 
         self.asmhdr += """\
 _02_testcode_begin:
+
+# restore (allow compressed instructions)
+.option pop
 # -------- BEGIN OF TESTCODE --------
 """
 
         # TAIL CODE (after test code)
         self.asmtail = """\
 # -------- END OF TESTCODE --------
+# disable compressed instruction emission for instrumentation code
+.option push
+.option norvc
+
 _03_testcode_end:
     j _04a_finalize_testcode_complete
+
+# restore (allow compressed instructions)
+.option pop
 """
 
         # CREATE COMMAND

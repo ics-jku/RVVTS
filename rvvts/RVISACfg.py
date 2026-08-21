@@ -27,6 +27,7 @@ class RVISACfg:
                     ("f", False),
                     ("d", False),
                     ("q", False),
+                    ("c", False),
                     ("b", False),
                     ("v", False),
                     ("zbc", False),

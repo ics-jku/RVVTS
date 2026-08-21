@@ -163,6 +163,14 @@ class SailRunner(ProcessTimeoutRunner):
         return super().run_handler(parameters=[binary], **kwargs)
 
     def rvisacfg_ext_to_sail_ext(self, ext, rvisacfg):
+        ext = ext.casefold()
+        if ext == "c":
+            sail_exts = ["Zca"]
+            if rvisacfg.get_xlen() == 32 and rvisacfg.is_needed("f"):
+                sail_exts.append("Zcf")
+            if rvisacfg.is_needed("d"):
+                sail_exts.append("Zcd")
+            return sail_exts
         return [ext.capitalize()]
 
     def cfg_set_ext_all(self, cfg, supported):
