@@ -77,16 +77,10 @@ class SailRunner(ProcessTimeoutRunner):
         # Disable all extensions
         self.cfg_set_ext_all(cfg, False)
 
-        # Enable mandatory extensions
-        self.cfg_set_ext(cfg, "Zifencei", True)
-        self.cfg_set_ext(cfg, "Zicsr", True)
-
         # Enable configured extensions
-        for ext in ["M", "B", "Zbc", "F", "D", "Zfh", "V"]:
-            if rvisacfg.is_needed(ext):
-                self.cfg_set_ext(cfg, ext, True)
-            else:
-                self.cfg_set_ext(cfg, ext, False)
+        for ext in rvisacfg.get_needed():
+            for sail_ext in self.rvisacfg_ext_to_sail_ext(ext, rvisacfg):
+                self.cfg_set_ext(cfg, sail_ext, True)
 
         # TODO: This is a workaround to prevent the following error messages
         # "Both supervisor mode (S) and the F extension are not enabled, but `base.mstatus.fs_legal_states` is
@@ -167,6 +161,9 @@ class SailRunner(ProcessTimeoutRunner):
 
     def run_handler(self, binary="", **kwargs):
         return super().run_handler(parameters=[binary], **kwargs)
+
+    def rvisacfg_ext_to_sail_ext(self, ext, rvisacfg):
+        return [ext.capitalize()]
 
     def cfg_set_ext_all(self, cfg, supported):
         for name in cfg["extensions"]:

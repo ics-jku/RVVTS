@@ -112,6 +112,9 @@ class RVISACfg:
         def is_set(self, ext):
             return self.ext.get(ext.casefold(), False)
 
+        def get_enabled(self):
+            return [ext for ext, val in self.ext.items() if val]
+
         def to_isa_str_raw(self, enabled_extensions):
             isa_str = ["", ""]
             for ext in enabled_extensions:
@@ -207,6 +210,12 @@ class RVISACfg:
 
     def is_needed_all(self, ext):
         return self.ext_needed.is_set_all(ext)
+
+    def get_under_test(self):
+        return self.ext_under_test.get_enabled()
+
+    def get_needed(self):
+        return self.ext_needed.get_enabled()
 
     def is_float_needed(self):
         return self.is_needed_any(["zfh", "f", "d", "q"])
