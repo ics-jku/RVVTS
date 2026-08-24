@@ -15,6 +15,7 @@ from .BasicRunner import *
 
 from .BuildRunner import *
 from .ArchiveRunner import *
+from .ReportRunner import *
 from .RefCovRunner import *
 from .CodeCheckRunner import *
 from .CompareRunner import *

@@ -381,7 +381,7 @@ class CodeErrMinRunner(Runner):
             )
 
         if ret[0] == RunnerOutcome.ERROR:
-            # if error -> re-run for later backup (e.g. ArchiveRunner)
+            # if error -> re-run for later backup (e.g. ReportRunner)
             ret = self.codecomparerunner.run(
                 blocking=True, code=self.res_code_block.as_code(), **self.runkwargs
             )
