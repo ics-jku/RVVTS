@@ -29,6 +29,8 @@ class VPRunner(ProcessTimeoutRunner):
             "--debug-port",
             str(config["debug_port"]),
         ]
+        if rvisacfg.is_needed("zbc"):
+            program.append("--en-ext-Zbc")
         if rvisacfg.is_needed("zfh"):
             program.append("--en-ext-Zfh")
         self.set_program(program)
