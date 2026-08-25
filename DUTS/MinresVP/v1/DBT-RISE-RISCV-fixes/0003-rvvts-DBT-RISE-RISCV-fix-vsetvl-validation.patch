@@ -1,0 +1,239 @@
+From 9a40c4eb71c89638c1e0442ede055ff571fcd358 Mon Sep 17 00:00:00 2001
+From: Anna REITER <annareiter001@gmail.com>
+Date: Wed, 26 Aug 2026 10:32:40 +0200
+Subject: [PATCH 3/3] rvvts: DBT-RISE-RISCV: fix vsetvl validation
+
+The RISC-V Vector specification requires vsetvl to handle reserved vtype values
+through vill instead of raising an illegal instruction trap.
+
+Signed-off-by: Anna REITER <annareiter001@gmail.com>
+Signed-off-by: Manfred SCHLAEGL <manfred.schlaegl@gmx.at>
+---
+ src/vm/interp/vm_rv32gcv.cpp | 30 ++++++++++++++++--------------
+ src/vm/interp/vm_rv64gcv.cpp | 30 ++++++++++++++++--------------
+ 2 files changed, 32 insertions(+), 28 deletions(-)
+
+diff --git a/src/vm/interp/vm_rv32gcv.cpp b/src/vm/interp/vm_rv32gcv.cpp
+index e78bede..a98cf1a 100644
+--- a/src/vm/interp/vm_rv32gcv.cpp
++++ b/src/vm/interp/vm_rv32gcv.cpp
+@@ -329,7 +329,7 @@ protected:
+         return bit_sub<3, 5-3+1>(*vtype);
+     }
+ 
+-    int8_t get_lmul_pow(){
++    int8_t get_lmul_pow(bool vsetvl=false){
+         switch(lmul()){
+         case 5: 
+             return - 3;
+@@ -345,13 +345,14 @@ protected:
+             return 2;
+         case 3: 
+             return 3;
+-        default: 
++        default:
++            if(vsetvl) return 0;
+             raise(0, traits::RV_CAUSE_ILLEGAL_INSTRUCTION);
+         }
+         return 0;
+     }
+ 
+-    uint8_t get_sew_pow(){
++    uint8_t get_sew_pow(bool vsetvl=false){
+         switch(sew()){
+         case 0: 
+             return 3;
+@@ -361,7 +362,8 @@ protected:
+             return 5;
+         case 3: 
+             return 6;
+-        default: 
++        default:
++            if (vsetvl) return 0;
+             raise(0, traits::RV_CAUSE_ILLEGAL_INSTRUCTION);
+         }
+         return 0;
+@@ -442,8 +444,8 @@ protected:
+         return ! (valid_vtype()) || ! (valid_rd_mask(vd, vm)) || ! (valid_fp_op(SEW, rm));
+     }
+ 
+-    uint8_t valid_sew_lmul(){
+-        return get_sew_pow() <= (uint16_t)(get_pow(traits::ELEN)) + (int16_t)(get_lmul_pow());
++    uint8_t valid_sew_lmul(bool vsetvl = false){
++        return get_sew_pow(vsetvl) <= (uint16_t)(get_pow(traits::ELEN)) + (int16_t)(get_lmul_pow(vsetvl));
+     }
+ 
+     uint16_t calculate_new_vl(uint32_t avl, uint16_t vlmax){
+@@ -5887,16 +5889,16 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+                                         raise(0, traits::RV_CAUSE_ILLEGAL_INSTRUCTION);
+                                     }
+                                     else {
+-                                        uint8_t orig_ratio = (uint8_t)(get_sew_pow() - get_lmul_pow());
++                                        uint8_t orig_ratio = (uint8_t)(get_sew_pow(true) - get_lmul_pow(true));
+                                         uint32_t orig_vstart = *vstart;
+                                         *vstart = 0;
+                                         *vtype = (uint32_t)((ma<<7)|(ta<<6)|(sew<<3)|lmul);
+-                                        if(! valid_sew_lmul()) {
++                                        if(! valid_sew_lmul(true)) {
+                                             handle_illegal_vtype();
+                                             *vstart = orig_vstart;
+                                         }
+                                         else {
+-                                            uint16_t VLMAX = (uint16_t)(1 << ((uint16_t)(get_pow(traits::VLEN)) + (int16_t)(get_lmul_pow()) - (uint16_t)(get_sew_pow()))) & ~1;
++                                            uint16_t VLMAX = (uint16_t)(1 << ((uint16_t)(get_pow(traits::VLEN)) + (int16_t)(get_lmul_pow(true)) - (uint16_t)(get_sew_pow(true)))) & ~1;
+                                             if(rs1 != 0) {
+                                                 uint32_t AVL = *(X+rs1);
+                                                 *vl = (uint32_t)calculate_new_vl(AVL, VLMAX);
+@@ -5910,7 +5912,7 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+                                                     *(X+rd) = (uint32_t)VLMAX;
+                                                 }
+                                                 else {
+-                                                    uint8_t new_ratio = (uint8_t)(get_sew_pow() - get_lmul_pow());
++                                                    uint8_t new_ratio = (uint8_t)(get_sew_pow(true) - get_lmul_pow(true));
+                                                     if(orig_ratio != new_ratio) {
+                                                         handle_illegal_vtype();
+                                                         *vstart = orig_vstart;
+@@ -5989,19 +5991,19 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+                                         raise(0, traits::RV_CAUSE_ILLEGAL_INSTRUCTION);
+                                     }
+                                     else {
+-                                        uint8_t orig_ratio = (uint8_t)(get_sew_pow() - get_lmul_pow());
++                                        uint8_t orig_ratio = (uint8_t)(get_sew_pow(true) - get_lmul_pow(true));
+                                         uint32_t orig_vstart = *vstart;
+                                         *vstart = 0;
+                                         if(bit_sub<uint32_t>(*(X+rs2), 8, ((uint64_t)(traits::XLEN) - (uint64_t)(2))-8+1)) {
+                                             raise(0, traits::RV_CAUSE_ILLEGAL_INSTRUCTION);
+                                         }
+                                         *vtype = *(X+rs2);
+-                                        if(! valid_sew_lmul()) {
++                                        if(! valid_sew_lmul(true)) {
+                                             handle_illegal_vtype();
+                                             *vstart = orig_vstart;
+                                         }
+                                         else {
+-                                            uint16_t VLMAX = (uint16_t)(1 << ((uint16_t)(get_pow(traits::VLEN)) + (int16_t)(get_lmul_pow()) - (uint16_t)(get_sew_pow()))) & ~1;
++                                            uint16_t VLMAX = (uint16_t)(1 << ((uint16_t)(get_pow(traits::VLEN)) + (int16_t)(get_lmul_pow(true)) - (uint16_t)(get_sew_pow(true)))) & ~1;
+                                             if(rs1 != 0) {
+                                                 uint32_t AVL = *(X+rs1);
+                                                 *vl = (uint32_t)calculate_new_vl(AVL, VLMAX);
+@@ -6015,7 +6017,7 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+                                                     *(X+rd) = (uint32_t)VLMAX;
+                                                 }
+                                                 else {
+-                                                    uint8_t new_ratio = (uint8_t)(get_sew_pow() - get_lmul_pow());
++                                                    uint8_t new_ratio = (uint8_t)(get_sew_pow(true) - get_lmul_pow(true));
+                                                     uint8_t vill = bit_sub<uint32_t>(*vtype, (uint64_t)(traits::XLEN) - (uint64_t)(1), 1);
+                                                     if(vill || (orig_ratio != new_ratio)) {
+                                                         handle_illegal_vtype();
+diff --git a/src/vm/interp/vm_rv64gcv.cpp b/src/vm/interp/vm_rv64gcv.cpp
+index d21c416..1ed8216 100644
+--- a/src/vm/interp/vm_rv64gcv.cpp
++++ b/src/vm/interp/vm_rv64gcv.cpp
+@@ -329,7 +329,7 @@ protected:
+         return bit_sub<3, 5-3+1>(*vtype);
+     }
+ 
+-    int8_t get_lmul_pow(){
++    int8_t get_lmul_pow(bool vsetvl=false){
+         switch(lmul()){
+         case 5: 
+             return - 3;
+@@ -345,13 +345,14 @@ protected:
+             return 2;
+         case 3: 
+             return 3;
+-        default: 
++        default:
++            if(vsetvl) return 0;
+             raise(0, traits::RV_CAUSE_ILLEGAL_INSTRUCTION);
+         }
+         return 0;
+     }
+ 
+-    uint8_t get_sew_pow(){
++    uint8_t get_sew_pow(bool vsetvl=false){
+         switch(sew()){
+         case 0: 
+             return 3;
+@@ -361,7 +362,8 @@ protected:
+             return 5;
+         case 3: 
+             return 6;
+-        default: 
++        default:
++            if (vsetvl) return 0;
+             raise(0, traits::RV_CAUSE_ILLEGAL_INSTRUCTION);
+         }
+         return 0;
+@@ -442,8 +444,8 @@ protected:
+         return ! (valid_vtype()) || ! (valid_rd_mask(vd, vm)) || ! (valid_fp_op(SEW, rm));
+     }
+ 
+-    uint8_t valid_sew_lmul(){
+-        return get_sew_pow() <= (uint16_t)(get_pow(traits::ELEN)) + (int16_t)(get_lmul_pow());
++    uint8_t valid_sew_lmul(bool vsetvl = false){
++        return get_sew_pow(vsetvl) <= (uint16_t)(get_pow(traits::ELEN)) + (int16_t)(get_lmul_pow(vsetvl));
+     }
+ 
+     uint16_t calculate_new_vl(uint64_t avl, uint16_t vlmax){
+@@ -7230,16 +7232,16 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+                                         raise(0, traits::RV_CAUSE_ILLEGAL_INSTRUCTION);
+                                     }
+                                     else {
+-                                        uint8_t orig_ratio = (uint8_t)(get_sew_pow() - get_lmul_pow());
++                                        uint8_t orig_ratio = (uint8_t)(get_sew_pow(true) - get_lmul_pow(true));
+                                         uint64_t orig_vstart = *vstart;
+                                         *vstart = 0;
+                                         *vtype = (uint64_t)((ma<<7)|(ta<<6)|(sew<<3)|lmul);
+-                                        if(! valid_sew_lmul()) {
++                                        if(! valid_sew_lmul(true)) {
+                                             handle_illegal_vtype();
+                                             *vstart = orig_vstart;
+                                         }
+                                         else {
+-                                            uint16_t VLMAX = (uint16_t)(1 << ((uint16_t)(get_pow(traits::VLEN)) + (int16_t)(get_lmul_pow()) - (uint16_t)(get_sew_pow()))) & ~1;
++                                            uint16_t VLMAX = (uint16_t)(1 << ((uint16_t)(get_pow(traits::VLEN)) + (int16_t)(get_lmul_pow(true)) - (uint16_t)(get_sew_pow(true)))) & ~1;
+                                             if(rs1 != 0) {
+                                                 uint64_t AVL = *(X+rs1);
+                                                 *vl = (uint64_t)calculate_new_vl(AVL, VLMAX);
+@@ -7253,7 +7255,7 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+                                                     *(X+rd) = (uint64_t)VLMAX;
+                                                 }
+                                                 else {
+-                                                    uint8_t new_ratio = (uint8_t)(get_sew_pow() - get_lmul_pow());
++                                                    uint8_t new_ratio = (uint8_t)(get_sew_pow(true) - get_lmul_pow(true));
+                                                     if(orig_ratio != new_ratio) {
+                                                         handle_illegal_vtype();
+                                                         *vstart = orig_vstart;
+@@ -7332,19 +7334,19 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+                                         raise(0, traits::RV_CAUSE_ILLEGAL_INSTRUCTION);
+                                     }
+                                     else {
+-                                        uint8_t orig_ratio = (uint8_t)(get_sew_pow() - get_lmul_pow());
++                                        uint8_t orig_ratio = (uint8_t)(get_sew_pow(true) - get_lmul_pow(true));
+                                         uint64_t orig_vstart = *vstart;
+                                         *vstart = 0;
+                                         if(bit_sub<uint64_t>(*(X+rs2), 8, ((uint64_t)(traits::XLEN) - (uint64_t)(2))-8+1)) {
+                                             raise(0, traits::RV_CAUSE_ILLEGAL_INSTRUCTION);
+                                         }
+                                         *vtype = *(X+rs2);
+-                                        if(! valid_sew_lmul()) {
++                                        if(! valid_sew_lmul(true)) {
+                                             handle_illegal_vtype();
+                                             *vstart = orig_vstart;
+                                         }
+                                         else {
+-                                            uint16_t VLMAX = (uint16_t)(1 << ((uint16_t)(get_pow(traits::VLEN)) + (int16_t)(get_lmul_pow()) - (uint16_t)(get_sew_pow()))) & ~1;
++                                            uint16_t VLMAX = (uint16_t)(1 << ((uint16_t)(get_pow(traits::VLEN)) + (int16_t)(get_lmul_pow(true)) - (uint16_t)(get_sew_pow(true)))) & ~1;
+                                             if(rs1 != 0) {
+                                                 uint64_t AVL = *(X+rs1);
+                                                 *vl = (uint64_t)calculate_new_vl(AVL, VLMAX);
+@@ -7358,7 +7360,7 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+                                                     *(X+rd) = (uint64_t)VLMAX;
+                                                 }
+                                                 else {
+-                                                    uint8_t new_ratio = (uint8_t)(get_sew_pow() - get_lmul_pow());
++                                                    uint8_t new_ratio = (uint8_t)(get_sew_pow(true) - get_lmul_pow(true));
+                                                     uint8_t vill = bit_sub<uint64_t>(*vtype, (uint64_t)(traits::XLEN) - (uint64_t)(1), 1);
+                                                     if(vill || (orig_ratio != new_ratio)) {
+                                                         handle_illegal_vtype();

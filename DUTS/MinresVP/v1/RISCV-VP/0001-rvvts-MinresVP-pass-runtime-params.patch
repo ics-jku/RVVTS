@@ -1,0 +1,98 @@
+From fe5a15f2ca451557b0d8b8716b73e477b8bf7fe7 Mon Sep 17 00:00:00 2001
+From: Anna REITER <annareiter001@gmail.com>
+Date: Wed, 26 Aug 2026 10:35:02 +0200
+Subject: [PATCH] rvvts: MinresVP: pass runtime params
+
+RVVTS needs a configurable RAM base and stop PC so tests can run without hard-coded VP memory assumptions.
+
+Signed-off-by: Anna REITER <annareiter001@gmail.com>
+Signed-off-by: Manfred SCHLAEGL <manfred.schlaegl@gmx.at>
+---
+ src/CLIParser.cpp | 7 ++++++-
+ src/sc_main.cpp   | 3 ++-
+ src/vp/system.cpp | 6 ++++--
+ src/vp/system.h   | 5 +++--
+ src/vp/tb.cpp     | 4 ++--
+ src/vp/tb.h       | 4 ++--
+ 6 files changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/src/CLIParser.cpp b/src/CLIParser.cpp
+index 37ee5f8..3e3d75a 100644
+--- a/src/CLIParser.cpp
++++ b/src/CLIParser.cpp
+@@ -108,3 +108,8 @@ void CLIParser::build() {
+             ("dump-config,dc", po::value<std::string>()->default_value(""),
+-                    "dump configuration to file file");
++                    "dump configuration to file file")
++            ("mem-start-address", po::value<uint64_t>()->default_value(0x80000000),
++                    "RAM start address")
++            ("stop-at-pc", po::value<uint64_t>()->default_value(0x80000004),
++                    "PC break-point for RVVTS");
++
+     // clang-format on
+diff --git a/src/sc_main.cpp b/src/sc_main.cpp
+index c29bafb..32a5424 100644
+--- a/src/sc_main.cpp
++++ b/src/sc_main.cpp
+@@ -133,3 +133,4 @@ int sc_main(int argc, char* argv[]) {
+     ///////////////////////////////////////////////////////////////////////////
+-    auto i_system = scc::make_unique<vp::tb>("tb");
++    auto i_system = scc::make_unique<vp::tb>("tb", parser.get<uint64_t>("mem-start-address"),
++                                                                 parser.get<uint64_t>("stop-at-pc"));
+     ///////////////////////////////////////////////////////////////////////////
+diff --git a/src/vp/system.cpp b/src/vp/system.cpp
+index d5dfc67..af8a5f0 100644
+--- a/src/vp/system.cpp
++++ b/src/vp/system.cpp
+@@ -38,3 +38,3 @@ SC_HAS_PROCESS(system); // NOLINT
+ 
+-system::system(sc_core::sc_module_name nm)
++system::system(sc_core::sc_module_name nm, uint64_t mem_start_address, uint64_t stop_at_pc)
+ : sc_core::sc_module(nm)
+@@ -49,2 +49,4 @@ system::system(sc_core::sc_module_name nm)
+     core_complex.clint_irq_i(clint_int_s);
++    core_complex.setRvvtsStopAtPc(stop_at_pc);
++    core_complex.setRvvtsMemLen(RAM_SIZE);
+ 
+@@ -52,3 +54,3 @@ system::system(sc_core::sc_module_name nm)
+     main_bus.bind_target(qspi.xip_sck, 1, 0x20000000, 16_MB);
+-    main_bus.bind_target(mem_ram.target, 2, 0x30000000, mem_ram.getSize());
++    main_bus.bind_target(mem_ram.target, 2,  mem_start_address, mem_ram.getSize());
+     main_bus.bind_target(mem_trace.target, 3, 0x31000000, mem_trace.getSize());
+diff --git a/src/vp/system.h b/src/vp/system.h
+index 60f1042..010e042 100644
+--- a/src/vp/system.h
++++ b/src/vp/system.h
+@@ -55,3 +55,3 @@ public:
+ 
+-    system(sc_core::sc_module_name nm);
++    system(sc_core::sc_module_name nm, uint64_t mem_start_address, uint64_t stop_at_pc);
+ 
+@@ -69,3 +69,4 @@ private:
+ 
+-    scc::memory<256_kB, scc::LT> mem_ram{"mem_ram"};
++    static constexpr uint64_t RAM_SIZE = 0x300000;
++    scc::memory<RAM_SIZE, scc::LT> mem_ram{"mem_ram"};
+     scc::memory<1_GB, scc::LT> mem_dram{"mem_dram"};
+diff --git a/src/vp/tb.cpp b/src/vp/tb.cpp
+index 53fe4cd..abd1552 100644
+--- a/src/vp/tb.cpp
++++ b/src/vp/tb.cpp
+@@ -12,4 +12,4 @@ namespace vp {
+ SC_HAS_PROCESS(tb);
+-tb::tb(const sc_core::sc_module_name& nm)
+-: sc_core::sc_module(nm) {
++tb::tb(const sc_core::sc_module_name& nm, uint64_t mem_start_address, uint64_t stop_at_pc)
++: sc_core::sc_module(nm), top{"top", mem_start_address, stop_at_pc} {
+     top.erst_n(rst_n);
+diff --git a/src/vp/tb.h b/src/vp/tb.h
+index 96fecf2..743c10e 100644
+--- a/src/vp/tb.h
++++ b/src/vp/tb.h
+@@ -20,4 +20,4 @@ class tb : public sc_core::sc_module {
+ public:
+-    tb(sc_core::sc_module_name const& nm);
+-    vp::system top{"top"};
++    tb(sc_core::sc_module_name const& nm, uint64_t mem_start_address, uint64_t stop_at_pc);
++    vp::system top;
+     vpvper::generic::rst_gen rst_gen{"rst_gen"};

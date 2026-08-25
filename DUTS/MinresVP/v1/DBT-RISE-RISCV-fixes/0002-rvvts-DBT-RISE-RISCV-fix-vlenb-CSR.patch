@@ -1,0 +1,27 @@
+From e47ef1a787402869879ac5ef00411267f2ff0090 Mon Sep 17 00:00:00 2001
+From: Anna REITER <annareiter001@gmail.com>
+Date: Wed, 26 Aug 2026 10:32:40 +0200
+Subject: [PATCH 2/3] rvvts: DBT-RISE-RISCV: fix vlenb CSR
+
+The RISC-V Vector specification defines vlenb as the vector register length in
+bytes, not bits.
+
+Signed-off-by: Anna REITER <annareiter001@gmail.com>
+Signed-off-by: Manfred SCHLAEGL <manfred.schlaegl@gmx.at>
+---
+ src/iss/arch/riscv_hart_common.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/iss/arch/riscv_hart_common.h b/src/iss/arch/riscv_hart_common.h
+index d336136..d26a51c 100644
+--- a/src/iss/arch/riscv_hart_common.h
++++ b/src/iss/arch/riscv_hart_common.h
+@@ -932,7 +932,7 @@ template <typename BASE = logging::disass> struct riscv_hart_common : public BAS
+     }
+ 
+     iss::status read_vlenb(unsigned addr, reg_t& val) {
+-        val = traits<BASE>::V_REGS_SIZE;
++        val = traits<BASE>::V_REGS_SIZE/8;
+         return iss::Ok;
+     }
+ 

@@ -38,4 +38,9 @@ config = dict(
     # Path to QEMU binaries
     # Mandatory when used as reference or DuT
     qemu_path = "/opt/qemu",
+
+    # Path to MinresVP binary
+    # Mandatory when used as reference or Dut
+    #minresvp_bin = "/opt/Minres-RISCV-VP/build/Debug/src/riscv-vp"
+    minresvp_bin = "/opt/Minres-RISCV-VP/build/Release/src/riscv-vp"
 )

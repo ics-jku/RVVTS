@@ -28,6 +28,7 @@ from .QEMURunner import *
 from .VPRunner import *
 from .AraRunner import *
 from .SailRunner import *
+from .MinresVPRunner import *
 
 from .ISG_Base import *
 from .ISG_RVI import *

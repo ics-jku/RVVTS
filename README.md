@@ -243,6 +243,70 @@ More detailed build instructions can be found in the documentation of RISC-V VP+
 
 
 
+### Minres-VP (Optional)
+The [Minres RISC-VP](https://github.com/Minres/RISCV-VP) is an open-source RISC-V Virtual Prototype with support for RISC-V Vector.
+
+ 1. Clone the RISC-VP repository and enter the directory
+    ```
+    git clone https://github.com/Minres/RISCV-VP.git
+    cd RISCV-VP
+    ```
+ 2. Optional: checkout one of the following tested git hashes
+    - ```de469f8b38e88615fc621a80480ac5d729ea623b``` (from Aug 12 2026)
+    - ```5ce91492e20bf31ae3020379333bc9b59003e76b``` (from May 15 2026)
+    ```
+    git checkout <git-hash>
+    ```
+ 3.  Initialize submodules
+    ```
+    git submodule update --init --recursive
+    ```
+
+ 4. Apply Patches <br>
+    The Minres-VP patch set is split by git repository because the Minres-VP tree
+    uses git submodules. The helper script applies the required patches with
+    ```git am``` in the toplevel repository and in the affected submodules:
+    ```
+    <rvvts>/DUTS/MinresVP/v1/patch_minresvp.sh .
+    ```
+    Use ```--no-fixes``` to skip the optional DBT-RISE-RISCV bug-fix patches
+    from ```DBT-RISE-RISCV-fixes```:
+    ```
+    <rvvts>/DUTS/MinresVP/v1/patch_minresvp.sh --no-fixes .
+    ```
+
+    Manual patch application:
+    - In toplevel:
+        ```
+        git am <rvvts>/DUTS/MinresVP/v1/RISCV-VP/*.patch
+        ```
+    - In subproject ```dbt-rise-core```:
+        ```
+        git am <rvvts>/DUTS/MinresVP/v1/DBT-RISE-Core/*.patch
+        ```
+    - In subproject ```dbt-rise-riscv```:
+        ```
+        git am <rvvts>/DUTS/MinresVP/v1/DBT-RISE-RISCV/*.patch
+        git am <rvvts>/DUTS/MinresVP/v1/DBT-RISE-RISCV-fixes/0001-rvvts-DBT-RISE-RISCV-fix-vcsr-write.patch # optional
+        git am <rvvts>/DUTS/MinresVP/v1/DBT-RISE-RISCV-fixes/0002-rvvts-DBT-RISE-RISCV-fix-vlenb-CSR.patch # optional
+        git am <rvvts>/DUTS/MinresVP/v1/DBT-RISE-RISCV-fixes/0003-rvvts-DBT-RISE-RISCV-fix-vsetvl-validation.patch # optional
+        ```
+ 5. Build
+     The Minres-VP build uses Conan. Install Conan first if it is not available
+     yet, e.g. with ```pip install conan```, and run ```conan profile detect```
+     once before configuring the build.
+     ```
+     cmake -S . -B build/Release --preset Release && cmake --build build/Release -j$(nproc)
+     ```
+     or
+     ```
+     cmake -S . -B build/Debug --preset Debug && cmake --build build/Debug -j$(nproc)
+     ```
+     You should have a ```riscv-vp``` executable file in directory ```build/Debug/src/``` (or ```build/Release/src/```).
+ 6. Update ```minresvp_bin``` in ```config_host.py``` (e.g. ```/Path/to/build/Debug/src/riscv-vp```)
+
+
+
 ## First Steps
 
 After installation/setup:

@@ -1,0 +1,186 @@
+From f5a31afc3b6f189d6da4855a1827dadb0c13e65e Mon Sep 17 00:00:00 2001
+From: Anna REITER <annareiter001@gmail.com>
+Date: Wed, 26 Aug 2026 10:36:37 +0200
+Subject: [PATCH 1/2] rvvts: DBT-RISE-RISCV: stop at PC
+
+RVVTS needs the interpreter to stop at the configured end PC and trigger the memory dump hook.
+
+Signed-off-by: Anna REITER <annareiter001@gmail.com>
+Signed-off-by: Manfred SCHLAEGL <manfred.schlaegl@gmx.at>
+---
+ src/sysc/core_complex.h       | 12 ++++++++++++
+ src/vm/interp/vm_rv32gc.cpp   |  5 +++++
+ src/vm/interp/vm_rv32gcv.cpp  |  5 +++++
+ src/vm/interp/vm_rv32i.cpp    |  5 +++++
+ src/vm/interp/vm_rv32imac.cpp |  5 +++++
+ src/vm/interp/vm_rv64gc.cpp   |  5 +++++
+ src/vm/interp/vm_rv64gcv.cpp  |  5 +++++
+ src/vm/interp/vm_rv64i.cpp    |  5 +++++
+ src/vm/interp/vm_rv64imac.cpp |  5 +++++
+ 9 files changed, 52 insertions(+)
+
+diff --git a/src/sysc/core_complex.h b/src/sysc/core_complex.h
+index 5f5019b..8b7460f 100644
+--- a/src/sysc/core_complex.h
++++ b/src/sysc/core_complex.h
+@@ -230,6 +230,14 @@ public:
+         core->register_unknown_instr_handler(handler);
+     }
+ 
++    void setRvvtsStopAtPc(uint64_t rvvts_stop_at_pc) {
++        stop_at_pc = rvvts_stop_at_pc;
++    }
++
++    void setRvvtsMemLen(uint64_t mem_len) {
++        memory_length = mem_len;
++    }
++
+ protected:
+     void create_cpu(std::string const& type, std::string const& backend, unsigned gdb_port, uint32_t hart_id);
+     int cmd_sysc(int argc, char* argv[], iss::debugger::out_func, iss::debugger::data_func, iss::debugger::target_adapter_if*);
+@@ -294,6 +302,8 @@ protected:
+         f();
+     }
+     template <typename U = QK> typename std::enable_if<std::is_same<U, tlm::scc::quantumkeeper_st>::value>::type run_iss() {
++        vm->setRvvtsStopAtPc(stop_at_pc);
++        vm->setRvvtsMemLen(memory_length);
+         vm->start(std::numeric_limits<uint64_t>::max(), dump_ir, static_cast<iss::finish_cond_e>(finish_condition.get_value()));
+     }
+     ///////////////////////////////////////////////////////////////////////////////
+@@ -319,6 +329,8 @@ protected:
+     std::unique_ptr<scc::tick2time> t2t;
+     sc_core::sc_event finish_evt{"finish_evt"};
+     bool finish_evt_inuse{false};
++    uint64_t stop_at_pc;
++    uint64_t memory_length;
+ 
+ private:
+     void init(size_t clint_irq_size);
+diff --git a/src/vm/interp/vm_rv32gc.cpp b/src/vm/interp/vm_rv32gc.cpp
+index f8bdf17..4621a99 100644
+--- a/src/vm/interp/vm_rv32gc.cpp
++++ b/src/vm/interp/vm_rv32gc.cpp
+@@ -428,6 +428,11 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+     while(!this->core.should_stop() &&
+             !(is_icount_limit_enabled(cond) && icount >= count_limit) &&
+             !(is_fcount_limit_enabled(cond) && fetch_count >= count_limit)){
++
++        if(*PC == this->stop_at_pc) {
++            this->handleRvvtsExitEvent(*reinterpret_cast<uint64_t*>(&start), this->memory_length);
++        }
++
+         if(this->debugging_enabled())
+             this->tgt_adapter->check_break_on_pc(*PC);
+         pc.val=*PC;
+diff --git a/src/vm/interp/vm_rv32gcv.cpp b/src/vm/interp/vm_rv32gcv.cpp
+index e85bd59..087bf07 100644
+--- a/src/vm/interp/vm_rv32gcv.cpp
++++ b/src/vm/interp/vm_rv32gcv.cpp
+@@ -1399,6 +1399,11 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+     while(!this->core.should_stop() &&
+             !(is_icount_limit_enabled(cond) && icount >= count_limit) &&
+             !(is_fcount_limit_enabled(cond) && fetch_count >= count_limit)){
++
++        if(*PC == this->stop_at_pc) {
++            this->handleRvvtsExitEvent(*reinterpret_cast<uint64_t*>(&start), this->memory_length);
++        }
++
+         if(this->debugging_enabled())
+             this->tgt_adapter->check_break_on_pc(*PC);
+         pc.val=*PC;
+diff --git a/src/vm/interp/vm_rv32i.cpp b/src/vm/interp/vm_rv32i.cpp
+index 1d88dc9..7a68c68 100644
+--- a/src/vm/interp/vm_rv32i.cpp
++++ b/src/vm/interp/vm_rv32i.cpp
+@@ -284,6 +284,11 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+     while(!this->core.should_stop() &&
+             !(is_icount_limit_enabled(cond) && icount >= count_limit) &&
+             !(is_fcount_limit_enabled(cond) && fetch_count >= count_limit)){
++
++        if(*PC == this->stop_at_pc) {
++            this->handleRvvtsExitEvent(*reinterpret_cast<uint64_t*>(&start), this->memory_length);
++        }
++
+         if(this->debugging_enabled())
+             this->tgt_adapter->check_break_on_pc(*PC);
+         pc.val=*PC;
+diff --git a/src/vm/interp/vm_rv32imac.cpp b/src/vm/interp/vm_rv32imac.cpp
+index 2eb6cc0..3f99dfe 100644
+--- a/src/vm/interp/vm_rv32imac.cpp
++++ b/src/vm/interp/vm_rv32imac.cpp
+@@ -333,6 +333,11 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+     while(!this->core.should_stop() &&
+             !(is_icount_limit_enabled(cond) && icount >= count_limit) &&
+             !(is_fcount_limit_enabled(cond) && fetch_count >= count_limit)){
++
++        if(*PC == this->stop_at_pc) {
++            this->handleRvvtsExitEvent(*reinterpret_cast<uint64_t*>(&start), this->memory_length);
++        }
++
+         if(this->debugging_enabled())
+             this->tgt_adapter->check_break_on_pc(*PC);
+         pc.val=*PC;
+diff --git a/src/vm/interp/vm_rv64gc.cpp b/src/vm/interp/vm_rv64gc.cpp
+index ad66735..616141a 100644
+--- a/src/vm/interp/vm_rv64gc.cpp
++++ b/src/vm/interp/vm_rv64gc.cpp
+@@ -468,6 +468,11 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+     while(!this->core.should_stop() &&
+             !(is_icount_limit_enabled(cond) && icount >= count_limit) &&
+             !(is_fcount_limit_enabled(cond) && fetch_count >= count_limit)){
++
++        if(*PC == this->stop_at_pc) {
++            this->handleRvvtsExitEvent(*reinterpret_cast<uint64_t*>(&start), this->memory_length);
++        }
++
+         if(this->debugging_enabled())
+             this->tgt_adapter->check_break_on_pc(*PC);
+         pc.val=*PC;
+diff --git a/src/vm/interp/vm_rv64gcv.cpp b/src/vm/interp/vm_rv64gcv.cpp
+index 9705d3b..7922f49 100644
+--- a/src/vm/interp/vm_rv64gcv.cpp
++++ b/src/vm/interp/vm_rv64gcv.cpp
+@@ -1439,6 +1439,11 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+     while(!this->core.should_stop() &&
+             !(is_icount_limit_enabled(cond) && icount >= count_limit) &&
+             !(is_fcount_limit_enabled(cond) && fetch_count >= count_limit)){
++
++        if(*PC == this->stop_at_pc) {
++            this->handleRvvtsExitEvent(*reinterpret_cast<uint64_t*>(&start), this->memory_length);
++        }
++
+         if(this->debugging_enabled())
+             this->tgt_adapter->check_break_on_pc(*PC);
+         pc.val=*PC;
+diff --git a/src/vm/interp/vm_rv64i.cpp b/src/vm/interp/vm_rv64i.cpp
+index ceaff21..cbb7695 100644
+--- a/src/vm/interp/vm_rv64i.cpp
++++ b/src/vm/interp/vm_rv64i.cpp
+@@ -296,6 +296,11 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+     while(!this->core.should_stop() &&
+             !(is_icount_limit_enabled(cond) && icount >= count_limit) &&
+             !(is_fcount_limit_enabled(cond) && fetch_count >= count_limit)){
++
++        if(*PC == this->stop_at_pc) {
++            this->handleRvvtsExitEvent(*reinterpret_cast<uint64_t*>(&start), this->memory_length);
++        }
++
+         if(this->debugging_enabled())
+             this->tgt_adapter->check_break_on_pc(*PC);
+         pc.val=*PC;
+diff --git a/src/vm/interp/vm_rv64imac.cpp b/src/vm/interp/vm_rv64imac.cpp
+index 3ba3883..a262bf4 100644
+--- a/src/vm/interp/vm_rv64imac.cpp
++++ b/src/vm/interp/vm_rv64imac.cpp
+@@ -367,6 +367,11 @@ typename vm_base<ARCH>::virt_addr_t vm_impl<ARCH>::execute_inst(finish_cond_e co
+     while(!this->core.should_stop() &&
+             !(is_icount_limit_enabled(cond) && icount >= count_limit) &&
+             !(is_fcount_limit_enabled(cond) && fetch_count >= count_limit)){
++
++        if(*PC == this->stop_at_pc) {
++            this->handleRvvtsExitEvent(*reinterpret_cast<uint64_t*>(&start), this->memory_length);
++        }
++
+         if(this->debugging_enabled())
+             this->tgt_adapter->check_break_on_pc(*PC);
+         pc.val=*PC;

@@ -1,0 +1,60 @@
+From 611d82c60ffe4aac3dc96a9d690c8016579831dc Mon Sep 17 00:00:00 2001
+From: Anna REITER <annareiter001@gmail.com>
+Date: Wed, 26 Aug 2026 10:19:17 +0200
+Subject: [PATCH] rvvts: DBT-RISE-Core: add memory dump
+
+RVVTS needs a deterministic exit path that stores the simulated RAM image for state comparison.
+
+Signed-off-by: Anna REITER <annareiter001@gmail.com>
+Signed-off-by: Manfred SCHLAEGL <manfred.schlaegl@gmx.at>
+---
+ src/iss/interp/vm_base.h | 13 +++++++++++++
+ src/iss/vm_if.h          | 11 +++++++++++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/src/iss/interp/vm_base.h b/src/iss/interp/vm_base.h
+index 9005f0c..13419fa 100644
+--- a/src/iss/interp/vm_base.h
++++ b/src/iss/interp/vm_base.h
+@@ -143,6 +143,19 @@ public:
+         return error;
+     }
+ 
++    void handleRvvtsExitEvent(uint64_t start_address, uint64_t memory_length) {
++        auto* buf = static_cast<uint8_t*>(malloc(memory_length));
++        memset(buf, 0, memory_length);
++        this->core.read({address_type::LOGICAL, access_type::DEBUG_READ, arch::traits<ARCH>::MEM, start_address}, memory_length, buf);
++        std::stringstream str_stream;
++        str_stream << "mem.0x" << std::hex << start_address << std::dec <<  ".bin" << std::endl;
++        std::string mem_dump_file;
++        str_stream >> mem_dump_file;
++        FILE* file = fopen(mem_dump_file.c_str(), "w");
++        fwrite(buf, 1, memory_length, file);
++        exit(0);
++    }
++
+     void reset() override { core.reset(); }
+ 
+     void reset(uint64_t address) override { core.reset(address); }
+diff --git a/src/iss/vm_if.h b/src/iss/vm_if.h
+index b86df8d..bbd6593 100644
+--- a/src/iss/vm_if.h
++++ b/src/iss/vm_if.h
+@@ -115,6 +115,17 @@ public:
+      * @param enable the flag to enable disassembling
+      */
+     void setDisassEnabled(bool enable) { disass_enabled = enable; }
++    uint64_t stop_at_pc;
++    uint64_t memory_length;
++
++    void setRvvtsStopAtPc(uint64_t rvvts_stop_at_pc) {
++        stop_at_pc = rvvts_stop_at_pc;
++    }
++
++    void setRvvtsMemLen(uint64_t mem_len) {
++        memory_length = mem_len;
++    }
++
+ 
+ protected:
+     bool disass_enabled{false};
