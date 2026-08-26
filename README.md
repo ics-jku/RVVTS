@@ -371,6 +371,14 @@ If you use RVVTS's floating-point testing functionality, you can cite our FP-RVV
 
 ### All RVVTS related publications
 
+* **FDL 2026**
+
+  Katharina Ruep, Manfred Schlägl, and Daniel Große. FP-RVVTS: Sail-guided verification of RISC-V floating-point implementations. In Forum on Specification and Design Languages (FDL), 2026.
+
+  Extends FP-RVVTS with Sail-RISC-V as executable architectural reference and evaluates floating-point behavior across ISSs, floating-point library integrations, and RTL implementations.
+
+  [[bib](https://ics.jku.at/bibliography/manfred_schlaegl/#RSG:2026b) | [.pdf](https://ics.jku.at/files/2026FDL_FP-RVVTS.pdf)]
+
 * **GLSVLSI 2026**
 
   Manfred Schlägl, Jonas Reichhardt, and Daniel Große. From generation to failure categorization: An open-source automated RTL verification framework for RVV. In ACM Great Lakes Symposium on VLSI (GLSVLSI), 2026.
