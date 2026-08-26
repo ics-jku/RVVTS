@@ -6,6 +6,10 @@ Subject: [PATCH 2/3] rvvts: DBT-RISE-RISCV: fix vlenb CSR
 The RISC-V Vector specification defines vlenb as the vector register length in
 bytes, not bits.
 
+This bug was found by the open-source RISC-V Vector Test Suite (RVVTS),
+developed at the Institute for Complex Systems, JKU Linz:
+https://github.com/ics-jku/RVVTS
+
 Signed-off-by: Anna REITER <annareiter001@gmail.com>
 Signed-off-by: Manfred SCHLAEGL <manfred.schlaegl@gmx.at>
 ---
