@@ -10,6 +10,27 @@ import re
 import jsonpickle
 
 
+def _stable_repr(value):
+    if isinstance(value, dict):
+        items = sorted(value.items(), key=lambda item: repr(item[0]))
+        return (
+            "{"
+            + ", ".join(f"{_stable_repr(k)}: {_stable_repr(v)}" for k, v in items)
+            + "}"
+        )
+    if isinstance(value, set):
+        items = sorted(value, key=repr)
+        return "{" + ", ".join(_stable_repr(item) for item in items) + "}"
+    if isinstance(value, list):
+        return "[" + ", ".join(_stable_repr(item) for item in value) + "]"
+    if isinstance(value, tuple):
+        items = ", ".join(_stable_repr(item) for item in value)
+        if len(value) == 1:
+            items += ","
+        return "(" + items + ")"
+    return repr(value)
+
+
 class CodeStats:
     def __init__(self):
         self.fragments = 0
@@ -47,6 +68,9 @@ class CodeElement:
 
     def get_ann(self):
         return {}
+
+    def get_ann_str(self):
+        return _stable_repr(self.get_ann())
 
     def replace(self, oldvalue, newvalue):
         pass

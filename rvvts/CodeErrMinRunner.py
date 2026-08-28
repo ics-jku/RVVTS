@@ -89,7 +89,7 @@ def code_minimize(
     # add bad fragment
     minimized_fragment = code.main_fragments.get_part(good_idx, bad_idx)
     minimized_code.add(
-        CodeFragment("    // INSTRUCTION (" + str(minimized_fragment.get_ann()) + ")")
+        CodeFragment(f"    // INSTRUCTION ({minimized_fragment.get_ann_str()})")
     )
     minimized_code.add(minimized_fragment)
     # ############# try to minimize with minimized state
