@@ -334,7 +334,7 @@ class ProcessTimeoutRunner(ThreadingRunner):
         super().setup(config=config)
 
         self.timeout = 1.0
-        self.proc_pid = -1
+        self.proc = None
         self.set_program(program)
 
     def _log_command(self, name="command.log", command=[]):
@@ -360,19 +360,25 @@ class ProcessTimeoutRunner(ThreadingRunner):
         proc = subprocess.Popen(
             command,
             cwd=self.get_dir(),
+            start_new_session=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
         )
-        self.proc_pid = proc.pid
+        self.proc = proc
         try:
             stdout, stderr = proc.communicate(input=self.input, timeout=self.timeout)
         except subprocess.TimeoutExpired:
-            proc.kill()
-            stdout, stderr = proc.communicate()
             timedout = True
-        self.proc_pid = -1
+            self._signal_process_group(signal.SIGKILL)
+            try:
+                stdout, stderr = proc.communicate(timeout=1.0)
+            except subprocess.TimeoutExpired as e:
+                stdout, stderr = self._close_process_pipes(
+                    proc, stdout=e.stdout, stderr=e.stderr
+                )
+        self.proc = None
 
         self._log_output(stdout=stdout, stderr=stderr)
 
@@ -394,11 +400,51 @@ class ProcessTimeoutRunner(ThreadingRunner):
 
     # request stop
     def stop(self):
-        if self.proc_pid > 0:
+        for _ in range(100):
+            if self.proc is not None or not self.is_busy():
+                break
+            time.sleep(0.01)
+
+        self._signal_process_group(signal.SIGTERM)
+        proc = self.proc
+        if proc is None:
+            return
+        try:
+            proc.wait(timeout=1.0)
+        except subprocess.TimeoutExpired:
+            self._signal_process_group(signal.SIGKILL)
+        except Exception:
+            pass
+
+    def _signal_process_group(self, sig):
+        # The process group contains the DUT and descendants that inherited
+        # its pipes, so signal the group instead of only the direct process.
+        proc = self.proc
+        if proc is None:
+            return
+        try:
+            # start_new_session makes proc.pid the leader of its process group.
+            os.killpg(proc.pid, sig)
+        except Exception:
+            pass
+
+    def _close_process_pipes(self, proc, stdout="", stderr=""):
+        # Last resort after a killed process group still leaves communicate()
+        # waiting for pipe EOF.  Preserve any output collected by subprocess.
+        def decode_output(output):
+            if output is None:
+                return ""
+            if isinstance(output, bytes):
+                return output.decode(errors="replace")
+            return output
+
+        for pipe in (proc.stdin, proc.stdout, proc.stderr):
             try:
-                os.kill(self.proc_pid, signal.SIGTERM)
+                if pipe:
+                    pipe.close()
             except Exception:
                 pass
+        return decode_output(stdout), decode_output(stderr)
 
     def _close(self, seen):
         self.stop()
