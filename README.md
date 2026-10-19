@@ -1,3 +1,5 @@
+[![RVVTS logo](doc/logo/preview/RVVTS_logo.png)](#logos)
+
 # RVVTS - The RISC-V Vector Test Framework (V2)
 
 The **RVVTS Framework** is a modular, open-source framework designed for comprehensive testing of **RISC-V Vector (RVV)** implementations.
@@ -426,3 +428,13 @@ If you use RVVTS's floating-point testing functionality, you can cite our FP-RVV
   Presents a precursor to RVVTS: a grammar-based fuzzing approach for RVV testing. The paper focuses on generating valid vector load/store sequences by extending a context-free grammar with functions that add context-sensitive behavior.
 
   [[bib](https://ics.jku.at/bibliography/manfred_schlaegl/#SG:2024) | [material](https://github.com/ics-jku/RVVTS) | [.pdf](https://ics.jku.at/files/2024RISCVSummit_BoundedLoadStoreGrammarTestRVV.pdf)]
+
+## Logos
+
+The project logos are available in the following variants and formats:
+
+| RVVTS Logo | RVVTS Logo + Name |
+| :---: | :---: |
+| ![RVVTS symbol](doc/logo/preview/RVVTS_logo.png) | ![RVVTS wordmark](doc/logo/preview/RVVTS_logo_name.png) |
+| [png](doc/logo/RVVTS_logo.png) · [svg](doc/logo/RVVTS_logo.svg) | [png](doc/logo/RVVTS_logo_name.png) · [svg](doc/logo/RVVTS_logo_name.svg) |
+| Compact variant | Full variant including the project name |
